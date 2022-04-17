@@ -485,6 +485,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   @IBAction func showHistoryWindow(_ sender: AnyObject) {
     historyWindow.showWindow(self)
   }
+  
+  @IBAction func generateThumbnails(_ sender: AnyObject) {
+    Logger.log("Menu - Generate Thumbnails")
+    let panel = NSOpenPanel()
+    panel.title = "Select folder to generate thumbnails"
+    panel.canCreateDirectories = false
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = true
+    panel.allowsMultipleSelection = false
+    if panel.runModal() == .OK {
+      let folder = panel.url
+      Logger.log(">>>>>>>>> folder = \(folder!)")
+      let tc = ThumbnailCache()
+      tc.generateOnly(path: folder!)
+    }
+  }
 
   @IBAction func showHighlights(_ sender: AnyObject) {
     guideWindow.show(pages: [.highlights])

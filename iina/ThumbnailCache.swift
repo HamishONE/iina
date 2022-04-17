@@ -10,7 +10,13 @@ import Cocoa
 
 fileprivate let subsystem = Logger.Subsystem(rawValue: "thumbcache")
 
-class ThumbnailCache {
+extension URL {
+    var isDirectory: Bool {
+       (try? resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+    }
+}
+
+class ThumbnailCache: NSObject {
   private typealias CacheVersion = UInt8
   private typealias FileSize = UInt64
   private typealias FileTimestamp = Int64
@@ -49,7 +55,7 @@ class ThumbnailCache {
   
   static func fileIsCached(forVideo videoPath: URL?) -> Bool {
     let md5 = MD5_1MB(forVideo: videoPath!)
-    Logger.log("fileIsCached(): MD5 = \(md5)", subsystem: subsystem)
+    //Logger.log("fileIsCached(): MD5 = \(md5)", subsystem: subsystem)
     
     // Check in the cache
     if self.fileExists(forName: md5) {
@@ -68,7 +74,7 @@ class ThumbnailCache {
     Logger.log("Writing thumbnail cache...", subsystem: subsystem)
     
     let md5 = MD5_1MB(forVideo: videoPath!)
-    Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
+    //Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
 
     let maxCacheSize = Preference.integer(for: .maxThumbnailPreviewCacheSize) * FloatingPointByteCountFormatter.PrefixFactor.mi.rawValue
     if maxCacheSize == 0 {
@@ -141,7 +147,7 @@ class ThumbnailCache {
     Logger.log("Reading thumbnail cache...", subsystem: subsystem)
     
     let md5 = MD5_1MB(forVideo: videoPath!)
-    Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
+    //Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
 
     let pathURL = urlFor(md5)
     guard let file = try? FileHandle(forReadingFrom: pathURL) else {
@@ -202,4 +208,48 @@ class ThumbnailCache {
     return Utility.thumbnailCacheURL.appendingPathComponent(name)
   }
 
+  private var thumbnails: [FFThumbnail] = []
+  private var currentPath : URL? = nil
+  
+  func generateOnly(path basePath: URL) {
+    if basePath.isDirectory {
+      let fileManager = FileManager.default
+      let contents = try? fileManager.contentsOfDirectory(at: basePath, includingPropertiesForKeys: nil)
+      for path in contents! {
+        generateOnly(path: path)
+      }
+    }
+    else {
+      if !Utility.playableFileExt.contains(basePath.pathExtension.lowercased()) {
+        Logger.log("Skipping unplayable file: '\(basePath.lastPathComponent)'", subsystem: subsystem)
+        return
+      }
+      if ThumbnailCache.fileIsCached(forVideo: basePath) {
+        Logger.log("Thumbnail cache already exists: '\(basePath.lastPathComponent)'", subsystem: subsystem)
+        return
+      }
+      Logger.log("Generating thumbnail cache: '\(basePath.lastPathComponent)' ...", subsystem: subsystem)
+      currentPath = basePath
+      let ffmpegController = FFmpegController()
+      ffmpegController.delegate = self
+      ffmpegController.generateThumbnail(forFile: basePath.path)
+      while currentPath != nil {
+        usleep(1000)
+      }
+    }
+  }
+}
+
+extension ThumbnailCache: FFmpegControllerDelegate {
+  func didUpdate(_ thumbnails: [FFThumbnail]?, forFile filename: String, withProgress progress: Int) {
+    Logger.log("Got new thumbnails, progress \(progress)", subsystem: subsystem)
+  }
+
+  func didGenerate(_ thumbnails: [FFThumbnail], forFile filename: String, succeeded: Bool) {
+    Logger.log("Got all thumbnails, succeeded=\(succeeded)", subsystem: subsystem)
+    if succeeded {
+      ThumbnailCache.write(thumbnails, forVideo: currentPath!)
+    }
+    currentPath = nil
+  }
 }
