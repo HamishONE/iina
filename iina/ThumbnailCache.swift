@@ -27,46 +27,48 @@ class ThumbnailCache {
     return FileManager.default.fileExists(atPath: urlFor(name).path)
   }
 
-  static func fileIsCached(forName name: String, forVideo videoPath: URL?) -> Bool {
-    guard let fileAttr = try? FileManager.default.attributesOfItem(atPath: videoPath!.path) else {
-      Logger.log("Cannot get video file attributes", level: .error, subsystem: subsystem)
-      return false
+  static func MD5_1MB(forVideo videoPath: URL) -> String {
+    let size = 1000000; // 1MB
+    
+    let fh = try! FileHandle(forReadingFrom: videoPath)
+    let bytes = fh.readData(ofLength: size)
+    
+    let digestLength = Int(CC_MD5_DIGEST_LENGTH)
+    let md5Buffer = UnsafeMutablePointer<CUnsignedChar>.allocate(capacity: digestLength)
+    
+    _ = bytes.withUnsafeBytes {
+      CC_MD5($0.baseAddress, CC_LONG(size), md5Buffer)
     }
-
-    // file size
-    guard let fileSize = fileAttr[.size] as? FileSize else {
-      Logger.log("Cannot get video file size", level: .error, subsystem: subsystem)
-      return false
+    
+    let output = NSMutableString(capacity: Int(CC_MD5_DIGEST_LENGTH * 2))
+    for i in 0..<digestLength {
+        output.appendFormat("%02x", md5Buffer[i])
     }
-
-    // modified date
-    guard let fileModifiedDate = fileAttr[.modificationDate] as? Date else {
-      Logger.log("Cannot get video file modification date", level: .error, subsystem: subsystem)
-      return false
-    }
-    let fileTimestamp = FileTimestamp(fileModifiedDate.timeIntervalSince1970)
-
-    // Check metadate in the cache
-    if self.fileExists(forName: name) {
-      guard let file = try? FileHandle(forReadingFrom: urlFor(name)) else {
+    return NSString(format: output) as String
+  }
+  
+  static func fileIsCached(forVideo videoPath: URL?) -> Bool {
+    let md5 = MD5_1MB(forVideo: videoPath!)
+    Logger.log("fileIsCached(): MD5 = \(md5)", subsystem: subsystem)
+    
+    // Check in the cache
+    if self.fileExists(forName: md5) {
+      guard (try? FileHandle(forReadingFrom: urlFor(md5))) != nil else {
         Logger.log("Cannot open cache file.", level: .error, subsystem: subsystem)
         return false
       }
-
-      let cacheVersion = file.read(type: CacheVersion.self)
-      if cacheVersion != version { return false }
-
-      return file.read(type: FileSize.self) == fileSize &&
-        file.read(type: FileTimestamp.self) == fileTimestamp
+      return true
     }
-
     return false
   }
 
   /// Write thumbnail cache to file.
   /// This method is expected to be called when the file doesn't exist.
-  static func write(_ thumbnails: [FFThumbnail], forName name: String, forVideo videoPath: URL?) {
+  static func write(_ thumbnails: [FFThumbnail], forVideo videoPath: URL?) {
     Logger.log("Writing thumbnail cache...", subsystem: subsystem)
+    
+    let md5 = MD5_1MB(forVideo: videoPath!)
+    Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
 
     let maxCacheSize = Preference.integer(for: .maxThumbnailPreviewCacheSize) * FloatingPointByteCountFormatter.PrefixFactor.mi.rawValue
     if maxCacheSize == 0 {
@@ -75,7 +77,7 @@ class ThumbnailCache {
       CacheManager.shared.clearOldCache()
     }
 
-    let pathURL = urlFor(name)
+    let pathURL = urlFor(md5)
     guard FileManager.default.createFile(atPath: pathURL.path, contents: nil, attributes: nil) else {
       Logger.log("Cannot create file.", level: .error, subsystem: subsystem)
       return
@@ -135,10 +137,13 @@ class ThumbnailCache {
 
   /// Read thumbnail cache to file.
   /// This method is expected to be called when the file exists.
-  static func read(forName name: String) -> [FFThumbnail]? {
+  static func read(forVideo videoPath: URL?) -> [FFThumbnail]? {
     Logger.log("Reading thumbnail cache...", subsystem: subsystem)
+    
+    let md5 = MD5_1MB(forVideo: videoPath!)
+    Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
 
-    let pathURL = urlFor(name)
+    let pathURL = urlFor(md5)
     guard let file = try? FileHandle(forReadingFrom: pathURL) else {
       Logger.log("Cannot open file.", level: .error, subsystem: subsystem)
       return nil

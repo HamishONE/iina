@@ -1417,10 +1417,10 @@ class PlayerCore: NSObject {
       }
     }
     if Preference.bool(for: .enableThumbnailPreview) {
-      if let cacheName = info.mpvMd5, ThumbnailCache.fileIsCached(forName: cacheName, forVideo: info.currentURL) {
+      if let forVideo = info.currentURL, ThumbnailCache.fileIsCached(forVideo: info.currentURL) {
         Logger.log("Found thumbnail cache", subsystem: subsystem)
         thumbnailQueue.async {
-          if let thumbnails = ThumbnailCache.read(forName: cacheName) {
+          if let thumbnails = ThumbnailCache.read(forVideo: forVideo) {
             self.info.thumbnails = thumbnails
             self.info.thumbnailsReady = true
             self.info.thumbnailsProgress = 1
@@ -1714,10 +1714,8 @@ extension PlayerCore: FFmpegControllerDelegate {
       info.thumbnailsReady = true
       info.thumbnailsProgress = 1
       refreshTouchBarSlider()
-      if let cacheName = info.mpvMd5 {
-        backgroundQueue.async {
-          ThumbnailCache.write(self.info.thumbnails, forName: cacheName, forVideo: self.info.currentURL)
-        }
+      backgroundQueue.async {
+        ThumbnailCache.write(self.info.thumbnails, forVideo: self.info.currentURL)
       }
     }
   }
