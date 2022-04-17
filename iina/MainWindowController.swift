@@ -1978,10 +1978,11 @@ class MainWindowController: PlayerWindowController {
       if player.info.thumbnailsReady, let image = player.info.getThumbnail(forSecond: previewTime.second)?.image {
         thumbnailPeekView.imageView.image = image.rotate(rotation)
         thumbnailPeekView.isHidden = false
-        let height = round(120 / thumbnailPeekView.imageView.image!.size.aspect)
+        let width = 250.0;
+        let height = round(width / thumbnailPeekView.imageView.image!.size.aspect)
         let yPos = (oscPosition == .top || (oscPosition == .floating && sliderFrameInWindow.y + 52 + height >= window!.frame.height)) ?
           sliderFrameInWindow.y - height : sliderFrameInWindow.y + 32
-        thumbnailPeekView.frame.size = NSSize(width: 120, height: height)
+        thumbnailPeekView.frame.size = NSSize(width: width, height: height)
         thumbnailPeekView.frame.origin = NSPoint(x: round(originalPos.x - thumbnailPeekView.frame.width / 2), y: yPos)
       } else {
         thumbnailPeekView.isHidden = true
