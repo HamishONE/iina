@@ -9,6 +9,16 @@
 import Cocoa
 import Mustache
 
+fileprivate let isMacOS11: Bool = {
+  var res = false
+  if #available(macOS 11.0, *) {
+    if #available(macOS 12.0, *) {} else {
+      res = true
+    }
+  }
+  return res
+}()
+
 fileprivate let TitleBarHeightNormal: CGFloat = {
   if #available(macOS 10.16, *) {
     return 28
@@ -538,6 +548,7 @@ class MainWindowController: PlayerWindowController {
     thumbnailPeekView.isHidden = true
 
     // other initialization
+    osdAccessoryProgress.usesThreadedAnimation = false
     if #available(macOS 10.14, *) {
       titleBarBottomBorder.fillColor = NSColor(named: .titleBarBorder)!
     }
@@ -577,6 +588,12 @@ class MainWindowController: PlayerWindowController {
       // Update the cached value
       self.cachedScreenCount = screenCount
       self.videoView.updateDisplayLink()
+      // In normal full screen mode AppKit will automatically adjust the window frame if the window
+      // is moved to a new screen such as when the window is on an external display and that display
+      // is disconnected. In legacy full screen mode IINA is responsible for adjusting the window's
+      // frame.
+      guard self.fsState.isFullscreen, Preference.bool(for: .useLegacyFullScreen) else { return }
+      setWindowFrameForLegacyFullScreen()
     }
   }
 
@@ -702,9 +719,14 @@ class MainWindowController: PlayerWindowController {
       oscFloatingTopView.addView(fragVolumeView, in: .leading)
       oscFloatingTopView.addView(fragToolbarView, in: .trailing)
       oscFloatingTopView.addView(fragControlView, in: .center)
-      oscFloatingTopView.setVisibilityPriority(.detachOnlyIfNecessary, for: fragVolumeView)
-      oscFloatingTopView.setVisibilityPriority(.detachOnlyIfNecessary, for: fragToolbarView)
-      oscFloatingTopView.setClippingResistancePriority(.defaultLow, for: .horizontal)
+      
+      // Setting the visibility priority to detach only will cause freeze when resizing the window
+      // (and triggering the detach) in macOS 11.
+      if !isMacOS11 {
+        oscFloatingTopView.setVisibilityPriority(.detachOnlyIfNecessary, for: fragVolumeView)
+        oscFloatingTopView.setVisibilityPriority(.detachOnlyIfNecessary, for: fragToolbarView)
+        oscFloatingTopView.setClippingResistancePriority(.defaultLow, for: .horizontal)
+      }
       oscFloatingBottomView.addSubview(fragSliderView)
       Utility.quickConstraints(["H:|[v]|", "V:|[v]|"], ["v": fragSliderView])
       Utility.quickConstraints(["H:|-(>=0)-[v]-(>=0)-|"], ["v": fragControlView])
@@ -985,12 +1007,41 @@ class MainWindowController: PlayerWindowController {
   // MARK: - Window delegate: Open / Close
 
   func windowWillOpen() {
-    var screen = window!.screen!
+    if #available(macOS 12, *) {
+      // Apparently Apple fixed AppKit for Monterey so the workaround below is only needed for
+      // previous versions of macOS. Support for #unavailable is coming in Swift 5.6. The version of
+      // Xcode being used at the time of this writing supports Swift 5.5.
+    } else {
+      // Must workaround an AppKit defect in earlier versions of macOS. This defect is known to
+      // exist in Catalina and Big Sur. The problem was not reproducible in Monterey. The status of
+      // other versions of macOS is unknown, however the workaround should be safe to apply in any
+      // version of macOS. The problem was reported in issues #3159, #3097 and #3253. The titles of
+      // open windows shown in the "Window" menu are automatically managed by the AppKit framework.
+      // To improve performance PlayerCore caches and reuses player instances along with their
+      // windows. This technique is valid and recommended by Apple. But in older versions of macOS,
+      // if a window is reused the framework will display the title first used for the window in the
+      // "Window" menu even after IINA has updated the title of the window. This problem can also be
+      // seen when right-clicking or control-clicking the IINA icon in the dock. As a workaround
+      // reset the window's title to "Window" before it is reused. This is the default title AppKit
+      // assigns to a window when it is first created. Surprising and rather disturbing this works
+      // as a workaround, but it does.
+      window!.title = "Window"
+    }
+
+    // As there have been issues in this area, log details about the screen selection process.
+    NSScreen.log("window!.screen", window!.screen)
+    NSScreen.log("NSScreen.main", NSScreen.main)
+    NSScreen.screens.enumerated().forEach { screen in
+      NSScreen.log("NSScreen.screens[\(screen.offset)]" , screen.element)
+    }
+
+    var screen = window!.selectDefaultScreen()
 
     if let rectString = UserDefaults.standard.value(forKey: "MainWindowLastPosition") as? String {
       let rect = NSRectFromString(rectString)
       if let lastScreen = NSScreen.screens.first(where: { NSPointInRect(rect.origin, $0.visibleFrame) }) {
         screen = lastScreen
+        NSScreen.log("MainWindowLastPosition \(rect.origin) matched", screen)
       }
     }
 
@@ -1300,6 +1351,20 @@ class MainWindowController: PlayerWindowController {
     windowDidExitFullScreen(Notification(name: .iinaLegacyFullScreen))
   }
 
+  /// Set the window frame and if needed the content view frame to appropriately use the full screen.
+  ///
+  /// For screens that contain a camera housing the content view will be adjusted to not use that area of the screen.
+  private func setWindowFrameForLegacyFullScreen() {
+    guard let window = self.window else { return }
+    let screen = window.screen ?? NSScreen.main!
+    window.setFrame(screen.frame, display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+    guard let unusable = screen.cameraHousingHeight else { return }
+    // This screen contains an embedded camera. Shorten the height of the window's content view's
+    // frame to avoid having part of the window obscured by the camera housing.
+    let view = window.contentView!
+    view.setFrameSize(NSMakeSize(view.frame.width, screen.frame.height - unusable))
+  }
+
   private func legacyAnimateToFullscreen() {
     guard let window = self.window else { fatalError("make sure the window exists before animating") }
     // call delegate
@@ -1318,9 +1383,8 @@ class MainWindowController: PlayerWindowController {
     // auto hide menubar and dock
     NSApp.presentationOptions.insert(.autoHideMenuBar)
     NSApp.presentationOptions.insert(.autoHideDock)
-    // set frame
-    let screen = window.screen ?? NSScreen.main!
-    window.setFrame(screen.frame, display: true, animate: true)
+    // set window frame and in some cases content view frame
+    setWindowFrameForLegacyFullScreen()
     // call delegate
     windowDidEnterFullScreen(Notification(name: .iinaLegacyFullScreen))
   }
@@ -1403,6 +1467,36 @@ class MainWindowController: PlayerWindowController {
 
       controlBarFloating.xConstraint.constant = xPos
       controlBarFloating.yConstraint.constant = yPos
+    }
+    
+    // Detach the views in oscFloatingTopView manually on macOS 11 only; as it will cause freeze
+    if isMacOS11 && oscPosition == .floating {
+      guard let maxWidth = [fragVolumeView, fragToolbarView].compactMap({ $0?.frame.width }).max() else {
+        return
+      }
+      
+      // window - 10 - controlBarFloating
+      // controlBarFloating - 12 - oscFloatingTopView
+      let margin: CGFloat = (10 + 12) * 2
+      let hide = (window.frame.width
+                    - fragControlView.frame.width
+                    - maxWidth*2
+                    - margin) < 0
+      
+      let views = oscFloatingTopView.views
+      if hide {
+        if views.contains(fragVolumeView)
+            && views.contains(fragToolbarView) {
+          oscFloatingTopView.removeView(fragVolumeView)
+          oscFloatingTopView.removeView(fragToolbarView)
+        }
+      } else {
+        if !views.contains(fragVolumeView)
+            && !views.contains(fragToolbarView) {
+          oscFloatingTopView.addView(fragVolumeView, in: .leading)
+          oscFloatingTopView.addView(fragToolbarView, in: .trailing)
+        }
+      }
     }
   }
 
