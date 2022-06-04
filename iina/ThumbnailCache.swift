@@ -232,7 +232,8 @@ class ThumbnailCache: NSObject {
       currentPath = basePath
       let ffmpegController = FFmpegController()
       ffmpegController.delegate = self
-      ffmpegController.generateThumbnail(forFile: basePath.path)
+      ffmpegController.generateThumbnail(forFile: basePath.path,
+                                         thumbWidth:Int32(Preference.integer(for: .thumbnailWidth)))
       while currentPath != nil {
         usleep(1000)
       }
