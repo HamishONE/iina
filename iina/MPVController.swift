@@ -360,7 +360,8 @@ class MPVController: NSObject {
     }
     let apiType = UnsafeMutableRawPointer(mutating: (MPV_RENDER_API_TYPE_OPENGL as NSString).utf8String)
     var openGLInitParams = mpv_opengl_init_params(get_proc_address: mpvGetOpenGLFunc,
-                                                  get_proc_address_ctx: nil)
+                                                  get_proc_address_ctx: nil,
+                                                  extra_exts: nil)
     withUnsafeMutablePointer(to: &openGLInitParams) { openGLInitParams in
       // var advanced: CInt = 1
       var params = [
