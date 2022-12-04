@@ -8,7 +8,7 @@
 
 import Cocoa
 
-fileprivate let MenuItemTagRevealInFinder = 100
+fileprivate let MenuItemTagShowInFinder = 100
 fileprivate let MenuItemTagDelete = 101
 fileprivate let MenuItemTagSearchFilename = 200
 fileprivate let MenuItemTagSearchFullPath = 201
@@ -200,7 +200,8 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
     }
     let newObjects = HistoryController.shared.history.filter { entry in
       let string = searchOption == .filename ? entry.name : entry.url.path
-      return string.lowercased().contains(searchString)
+      // Do a locale-aware, case and diacritic insensitive search:
+      return string.localizedStandardContains(searchString)
     }
     prepareData(fromHistory: newObjects)
     outlineView.reloadData()
@@ -229,7 +230,7 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
 
   func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
     switch menuItem.tag {
-    case MenuItemTagRevealInFinder:
+    case MenuItemTagShowInFinder:
       if selectedEntries.isEmpty { return false }
       return selectedEntries.contains { FileManager.default.fileExists(atPath: $0.url.path) }
     case MenuItemTagDelete, MenuItemTagPlay, MenuItemTagPlayInNewWindow:
@@ -261,7 +262,7 @@ class HistoryWindowController: NSWindowController, NSOutlineViewDelegate, NSOutl
     reloadData()
   }
 
-  @IBAction func revealInFinderAction(_ sender: AnyObject) {
+  @IBAction func showInFinderAction(_ sender: AnyObject) {
     let urls = selectedEntries.compactMap { FileManager.default.fileExists(atPath: $0.url.path) ? $0.url: nil }
     NSWorkspace.shared.activateFileViewerSelecting(urls)
   }

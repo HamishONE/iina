@@ -216,8 +216,9 @@ extension Array {
 }
 
 extension NSMenu {
+  @discardableResult
   func addItem(withTitle string: String, action selector: Selector? = nil, target: AnyObject? = nil,
-               tag: Int? = nil, obj: Any? = nil, stateOn: Bool = false, enabled: Bool = true) {
+               tag: Int? = nil, obj: Any? = nil, stateOn: Bool = false, enabled: Bool = true) -> NSMenuItem {
     let menuItem = NSMenuItem(title: string, action: selector, keyEquivalent: "")
     menuItem.tag = tag ?? -1
     menuItem.representedObject = obj
@@ -225,6 +226,7 @@ extension NSMenu {
     menuItem.state = stateOn ? .on : .off
     menuItem.isEnabled = enabled
     self.addItem(menuItem)
+    return menuItem
   }
 }
 
@@ -416,6 +418,10 @@ extension String {
     return "%\(count)%\(self)"
   }
 
+  func equalsIgnoreCase(_ other: String) -> Bool {
+    return localizedCompare(other) == .orderedSame
+  }
+
   mutating func deleteLast(_ num: Int) {
     removeLast(Swift.min(num, count))
   }
@@ -451,6 +457,10 @@ extension NSMenuItem {
 
 
 extension URL {
+  var creationDate: Date? {
+    (try? resourceValues(forKeys: [.creationDateKey]))?.creationDate
+  }
+
   var isExistingDirectory: Bool {
     return (try? self.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
   }
@@ -625,7 +635,9 @@ extension NSScreen {
     }
     // Unfortunately localizedName is not available until macOS Catalina.
     if #available(macOS 10.15, *) {
-      Logger.log("\(label): \(screen.localizedName) visible frame \(screen.visibleFrame)")
+      let maxPossibleEDR = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
+      let canEnableEDR = maxPossibleEDR > 1.0
+      Logger.log("\(label): \"\(screen.localizedName)\" visible frame \(screen.visibleFrame) EDR: {supports=\(canEnableEDR) maxPotential=\(maxPossibleEDR) maxCurrent=\(screen.maximumExtendedDynamicRangeColorComponentValue)}")
     } else {
       Logger.log("\(label): visible frame \(screen.visibleFrame)")
     }
@@ -654,5 +666,33 @@ extension NSWindow {
       return NSScreen.main!
     }
     return NSScreen.screens[0]
+  }
+}
+
+extension Process {
+  @discardableResult
+  static func run(_ cmd: [String], at currentDir: URL? = nil) -> (process: Process, stdout: Pipe, stderr: Pipe) {
+    guard cmd.count > 0 else {
+      fatalError("Process.launch: the command should not be empty")
+    }
+
+    let (stdout, stderr) = (Pipe(), Pipe())
+    let process = Process()
+    if #available(macOS 10.13, *) {
+      process.executableURL = URL(fileURLWithPath: cmd[0])
+      process.currentDirectoryURL = currentDir
+    } else {
+      process.launchPath = cmd[0]
+      if let path = currentDir?.path {
+        process.currentDirectoryPath = path
+      }
+    }
+    process.arguments = [String](cmd.dropFirst())
+    process.standardOutput = stdout
+    process.standardError = stderr
+    process.launch()
+    process.waitUntilExit()
+
+    return (process, stdout, stderr)
   }
 }

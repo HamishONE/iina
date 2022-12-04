@@ -37,7 +37,7 @@ class VideoView: NSView {
   // cached indicator to prevent unnecessary updates of DisplayLink
   var currentDisplay: UInt32?
 
-  var pendingRedrawAfterEnteringPIP = false;
+  var pendingRedrawsAfterEnteringPIP = 0;
 
   lazy var hdrSubsystem = Logger.Subsystem(rawValue: "hdr")
 
@@ -95,9 +95,9 @@ class VideoView: NSView {
 
   override func layout() {
     super.layout()
-    if pendingRedrawAfterEnteringPIP && superview != nil {
+    if pendingRedrawsAfterEnteringPIP != 0 && superview != nil {
+      pendingRedrawsAfterEnteringPIP -= 1
       videoLayer.draw(forced: true)
-      pendingRedrawAfterEnteringPIP = false
     }
   }
 
@@ -213,9 +213,12 @@ class VideoView: NSView {
     CVDisplayLinkStop(link)
   }
 
+  // This should only be called if the window has changed displays
   func updateDisplayLink() {
     guard let window = window, let link = link, let screen = window.screen else { return }
     let displayId = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as! UInt32
+
+    // Do nothing if on the same display
     if (currentDisplay == displayId) { return }
     currentDisplay = displayId
 
@@ -250,8 +253,10 @@ class VideoView: NSView {
 
   func setICCProfile(_ displayId: UInt32) {
     if !Preference.bool(for: .loadIccProfile) {
+      Logger.log("Not using ICC due to user preference", subsystem: hdrSubsystem)
       player.mpv.setString(MPVOption.GPURendererOptions.iccProfile, "")
     } else {
+      Logger.log("Loading ICC profile", subsystem: hdrSubsystem)
       typealias ProfileData = (uuid: CFUUID, profileUrl: URL?)
       guard let uuid = CGDisplayCreateUUIDFromDisplayID(displayId)?.takeRetainedValue() else { return }
 
@@ -279,6 +284,7 @@ class VideoView: NSView {
     }
 
     if videoLayer.colorspace != nil {
+      Logger.log("Nilling out colorspace", subsystem: hdrSubsystem)
       videoLayer.colorspace = nil;
       videoLayer.wantsExtendedDynamicRangeContent = false
       player.mpv.setString(MPVOption.GPURendererOptions.targetTrc, "auto")
@@ -295,6 +301,9 @@ extension VideoView {
     guard player.mainWindow.loaded else { return }
     guard player.mpv.fileLoaded else { return }
     guard let displayId = currentDisplay else { return };
+    if let screen = self.window?.screen {
+      NSScreen.log("Refreshing HDR for \(player.subsystem.rawValue) @ display\(displayId)", screen)
+    }
     let edrEnabled = requestEdrMode()
     let edrAvailable = edrEnabled != false
     if player.info.hdrAvailable != edrAvailable {
@@ -306,7 +315,10 @@ extension VideoView {
   func requestEdrMode() -> Bool? {
     guard let mpv = player.mpv else { return false }
 
-    guard let primaries = mpv.getString(MPVProperty.videoParamsPrimaries), let gamma = mpv.getString(MPVProperty.videoParamsGamma) else { return false }
+    guard let primaries = mpv.getString(MPVProperty.videoParamsPrimaries), let gamma = mpv.getString(MPVProperty.videoParamsGamma) else {
+      Logger.log("HDR primaries and gamma not available", level: .debug, subsystem: hdrSubsystem);
+      return false;
+    }
 
     var name: CFString? = nil;
     switch primaries {
@@ -360,6 +372,11 @@ extension VideoView {
     }
 
     guard player.info.hdrEnabled else { return nil }
+
+    if videoLayer.colorspace?.name == name {
+      Logger.log("HDR mode already enabled, skipping", level: .debug, subsystem: hdrSubsystem);
+      return true;
+    }
 
     Logger.log("Will activate HDR color space instead of using ICC profile", level: .debug, subsystem: hdrSubsystem);
 
