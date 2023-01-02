@@ -165,8 +165,8 @@ class PlaySliderCell: NSSliderCell {
     /// How far progressed the current video is, used for drawing the bar background
     var progress : CGFloat = 0;
 
-    if info.isNetworkResource,
-      info.cacheTime != 0,
+    // Use cacheTime even if not network resource because could be SMB network share that MPV does cache
+    if info.cacheTime != 0,
       let duration = info.videoDuration,
       duration.second != 0 {
       let pos = Double(info.cacheTime) / Double(duration.second) * 100

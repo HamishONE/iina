@@ -1621,6 +1621,8 @@ class PlayerCore: NSObject {
         info.videoPosition?.second = duration
       }
       info.constrainVideoPosition()
+      // Get cacheTime even if not network resource because could be SMB network share that MPV does cache
+      info.cacheTime = mpv.getInt(MPVProperty.demuxerCacheTime)
       DispatchQueue.main.async {
         if self.isInMiniPlayer {
           self.miniPlayer.updatePlayTime(withDuration: self.info.isNetworkResource, andProgressBar: true)
