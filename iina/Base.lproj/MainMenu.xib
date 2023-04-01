@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21507" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21507"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -129,11 +129,14 @@
                                     <action selector="showHistoryWindow:" target="Voe-Tx-rLC" id="yVv-sR-1DQ"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Generate thumbnails" id="a6q-Us-1ZZ">
+                            <menuItem title="Generate Thumbnails for Folder..." id="a6q-Us-1ZZ">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="generateThumbnails:" target="Voe-Tx-rLC" id="bhk-i8-dFy"/>
                                 </connections>
+                            </menuItem>
+                            <menuItem title="Re-generate Thumbnails for Current File" id="l8M-SI-ylY">
+                                <modifierMask key="keyEquivalentModifierMask"/>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="N0Z-h7-JSg"/>
                             <menuItem title="Delete Current File" id="npH-8B-XA4">
@@ -707,6 +710,7 @@ CA
                 <outlet property="decreaseVolumeSlightly" destination="Zhv-Bz-I5V" id="M7D-Ni-nLm"/>
                 <outlet property="deinterlace" destination="yHI-7D-OaI" id="Z8n-z4-52B"/>
                 <outlet property="deleteCurrentFile" destination="npH-8B-XA4" id="23t-fO-TbK"/>
+                <outlet property="deleteCurrentThumbnails" destination="l8M-SI-ylY" id="CgW-9u-k2C"/>
                 <outlet property="delogo" destination="ArE-2s-JIV" id="zzg-gr-TsG"/>
                 <outlet property="doubleSize" destination="Hal-18-Tnf" id="vnl-Rb-Y3o"/>
                 <outlet property="encodingMenu" destination="Pf6-5i-B1E" id="Gat-gG-pkT"/>

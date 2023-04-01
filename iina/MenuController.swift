@@ -57,6 +57,7 @@ class MenuController: NSObject, NSMenuDelegate {
   @IBOutlet weak var openURL: NSMenuItem!
   @IBOutlet weak var openURLAlternative: NSMenuItem!
   @IBOutlet weak var savePlaylist: NSMenuItem!
+  @IBOutlet weak var deleteCurrentThumbnails: NSMenuItem!
   @IBOutlet weak var deleteCurrentFile: NSMenuItem!
   @IBOutlet weak var newWindow: NSMenuItem!
   @IBOutlet weak var newWindowSeparator: NSMenuItem!
@@ -189,6 +190,7 @@ class MenuController: NSObject, NSMenuDelegate {
 
     savePlaylist.action = #selector(MainMenuActionHandler.menuSavePlaylist(_:))
     deleteCurrentFile.action = #selector(MainMenuActionHandler.menuDeleteCurrentFile(_:))
+    deleteCurrentThumbnails.action = #selector(MainMenuActionHandler.menuDeleteCurrentThumbnails(_:))
 
     if Preference.bool(for: .enableCmdN) {
       newWindowSeparator.isHidden = false

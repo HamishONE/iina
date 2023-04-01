@@ -1754,7 +1754,7 @@ class PlayerCore: NSObject {
     }
   }
 
-  func generateThumbnails() {
+  func generateThumbnails(force_regen: Bool = false) {
     Logger.log("Getting thumbnails", subsystem: subsystem)
     info.thumbnailsReady = false
     info.thumbnails.removeAll(keepingCapacity: true)
@@ -1775,7 +1775,7 @@ class PlayerCore: NSObject {
       }
     }
     if Preference.bool(for: .enableThumbnailPreview) {
-      if let forVideo = info.currentURL, ThumbnailCache.fileIsCached(forVideo: info.currentURL) {
+      if let forVideo = info.currentURL, !force_regen && ThumbnailCache.fileIsCached(forVideo: info.currentURL) {
         Logger.log("Found thumbnail cache", subsystem: subsystem)
         thumbnailQueue.async {
           if let thumbnails = ThumbnailCache.read(forVideo: forVideo) {

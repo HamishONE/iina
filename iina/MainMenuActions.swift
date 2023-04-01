@@ -56,6 +56,10 @@ class MainMenuActionHandler: NSResponder {
       Utility.showAlert("playlist.error_deleting", arguments: [error.localizedDescription])
     }
   }
+  
+  @objc func menuDeleteCurrentThumbnails(_ sender: NSMenuItem) {
+    player.generateThumbnails(force_regen: true)
+  }
 
   // currently only being used for key command
   @objc func menuDeleteCurrentFileHard(_ sender: NSMenuItem) {
