@@ -140,7 +140,7 @@ extension MainMenuActionHandler {
   }
 
   @objc func menuABLoop(_ sender: NSMenuItem) {
-    player.abLoop()
+    player.mainWindow.abLoop()
   }
 
   @objc func menuFileLoop(_ sender: NSMenuItem) {
@@ -320,7 +320,8 @@ extension MainMenuActionHandler {
 
 extension MainMenuActionHandler {
   @objc func menuLoadExternalSub(_ sender: NSMenuItem) {
-    Utility.quickOpenPanel(title: "Load external subtitle file", chooseDir: false) { url in
+    let currentDir = player.info.currentURL?.deletingLastPathComponent()
+    Utility.quickOpenPanel(title: "Load external subtitle file", chooseDir: false, dir: currentDir) { url in
       self.player.loadExternalSubFile(url, delay: true)
     }
   }

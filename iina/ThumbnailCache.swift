@@ -8,7 +8,7 @@
 
 import Cocoa
 
-fileprivate let subsystem = Logger.Subsystem(rawValue: "thumbcache")
+fileprivate let subsystem = Logger.makeSubsystem("thumbcache")
 
 extension URL {
     var isDirectory: Bool {

@@ -483,7 +483,7 @@ class MainWindowController: PlayerWindowController {
   // MARK: - PIP
 
   lazy var _pip: PIPViewController = {
-    let pip = PIPViewController()
+    let pip = VideoPIPViewController()
     if #available(macOS 10.12, *) {
       pip.delegate = self
     }
@@ -632,7 +632,39 @@ class MainWindowController: PlayerWindowController {
       setWindowFrameForLegacyFullScreen()
     }
 
+    // Observe the loop knobs on the progress bar and update mpv when the knobs move.
+    addObserver(to: .default, forName: .iinaPlaySliderLoopKnobChanged, object: playSlider.abLoopA) { [weak self] _ in
+      guard let self = self else { return }
+      let seconds = self.percentToSeconds(self.playSlider.abLoopA.doubleValue)
+      self.player.abLoopA = seconds
+      self.player.sendOSD(.abLoopUpdate(.aSet, VideoTime(seconds).stringRepresentation))
+    }
+    addObserver(to: .default, forName: .iinaPlaySliderLoopKnobChanged, object: playSlider.abLoopB) { [weak self] _ in
+      guard let self = self else { return }
+      let seconds = self.percentToSeconds(self.playSlider.abLoopB.doubleValue)
+      self.player.abLoopB = seconds
+      self.player.sendOSD(.abLoopUpdate(.bSet, VideoTime(seconds).stringRepresentation))
+    }
+
     player.events.emit(.windowLoaded)
+  }
+
+  /// Returns the position in seconds for the given percent of the total duration of the video the percentage represents.
+  ///
+  /// The number of seconds returned must be considered an estimate that could change. The duration of the video is obtained from
+  /// the [mpv](https://mpv.io/manual/stable/) `duration` property. The documentation for this property cautions that
+  /// mpv is not always able to determine the duration and when it does return a duration it may be an estimate. If the duration is
+  /// unknown this method will fallback to using the current playback position, if that is known. Otherwise this method will return zero.
+  /// - Parameter percent: Position in the video as a percentage of the duration.
+  /// - Returns: The position in the video the given percentage represents.
+  private func percentToSeconds(_ percent: Double) -> Double {
+    if let duration = player.info.videoDuration?.second {
+      return duration * percent / 100
+    } else if let position = player.info.videoPosition?.second {
+      return position * percent / 100
+    } else {
+      return 0
+    }
   }
 
   /** Set material for OSC and title bar */
@@ -841,10 +873,25 @@ class MainWindowController: PlayerWindowController {
     }
   }
 
+  /// Workaround for issue #4183, Cursor remains visible after resuming playback with the touchpad using secondary click
+  ///
+  /// When IINA hides the OSC it also calls the macOS AppKit method `NSCursor.setHiddenUntilMouseMoves` to hide the
+  /// cursor. In macOS Catalina that method works as documented and keeps the cursor hidden until the mouse moves. Starting with
+  /// macOS Big Sur the cursor becomes visible if mouse buttons are clicked without moving the mouse. To workaround this defect
+  /// call this method again to keep the cursor hidden when the OSC is not visible.
+  ///
+  /// This erroneous behavior has been reported to Apple as: "Regression in NSCursor.setHiddenUntilMouseMoves"
+  /// Feedback number FB11963121
+  private func workaroundCursorDefect() {
+    guard #available(macOS 11, *) else { return }
+    NSCursor.setHiddenUntilMouseMoves(true)
+  }
+
   override func mouseDown(with event: NSEvent) {
     if Logger.enabled && Logger.Level.preferred >= .verbose {
       Logger.log("MainWindow mouseDown @ \(event.locationInWindow)", level: .verbose, subsystem: player.subsystem)
     }
+    workaroundCursorDefect()
     // do nothing if it's related to floating OSC
     guard !controlBarFloating.isDragging else { return }
     // record current mouse pos
@@ -891,7 +938,7 @@ class MainWindowController: PlayerWindowController {
       Logger.log("MainWindow mouseUp @ \(event.locationInWindow), isDragging: \(isDragging), isResizingSidebar: \(isResizingSidebar), clickCount: \(event.clickCount)",
                  level: .verbose, subsystem: player.subsystem)
     }
-
+    workaroundCursorDefect()
     mousePosRelatedToWindow = nil
     if isDragging {
       // if it's a mouseup after dragging window
@@ -921,6 +968,31 @@ class MainWindowController: PlayerWindowController {
 
       super.mouseUp(with: event)
     }
+  }
+
+  override func otherMouseDown(with event: NSEvent) {
+    workaroundCursorDefect()
+    super.otherMouseDown(with: event)
+  }
+
+  override func otherMouseUp(with event: NSEvent) {
+    workaroundCursorDefect()
+    super.otherMouseUp(with: event)
+  }
+
+  /// Workaround for issue #4183, Cursor remains visible after resuming playback with the touchpad using secondary click
+  ///
+  /// AppKit contains special handling for [rightMouseDown](https://developer.apple.com/documentation/appkit/nsview/event_handling/1806802-rightmousedown) having to do with contextual menus.
+  /// Even though the documentation indicates the event will be passed up the responder chain, the event is not being received by the
+  /// window controller. We are having to catch the event in the view. Because of that we do not call the super method and instead
+  /// return to the view.`
+  override func rightMouseDown(with event: NSEvent) {
+    workaroundCursorDefect()
+  }
+
+  override func rightMouseUp(with event: NSEvent) {
+    workaroundCursorDefect()
+    super.rightMouseUp(with: event)
   }
 
   override internal func performMouseAction(_ action: Preference.MouseClickAction) {
@@ -1122,13 +1194,21 @@ class MainWindowController: PlayerWindowController {
     guard let w = self.window, let cv = w.contentView else { return }
     if cv.trackingAreas.isEmpty {
       cv.addTrackingArea(NSTrackingArea(rect: cv.bounds,
-                                        options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
+                                        options: [.activeAlways, .enabledDuringMouseDrag, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
                                         owner: self, userInfo: ["obj": 0]))
     }
     if playSlider.trackingAreas.isEmpty {
       playSlider.addTrackingArea(NSTrackingArea(rect: playSlider.bounds,
-                                                options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
+                                                options: [.activeAlways, .enabledDuringMouseDrag, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
                                                 owner: self, userInfo: ["obj": 1]))
+    }
+    // Track the thumbs on the progress bar representing the A-B loop points and treat them as part
+    // of the slider.
+    if playSlider.abLoopA.trackingAreas.count <= 1 {
+      playSlider.abLoopA.addTrackingArea(NSTrackingArea(rect: playSlider.abLoopA.bounds, options:  [.activeAlways, .enabledDuringMouseDrag, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved], owner: self, userInfo: ["obj": 1]))
+    }
+    if playSlider.abLoopB.trackingAreas.count <= 1 {
+      playSlider.abLoopB.addTrackingArea(NSTrackingArea(rect: playSlider.abLoopB.bounds, options: [.activeAlways, .enabledDuringMouseDrag, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved], owner: self, userInfo: ["obj": 1]))
     }
 
     // update timer
@@ -2841,17 +2921,6 @@ extension MainWindowController: PIPViewControllerDelegate {
 
     pip.presentAsPicture(inPicture: pipVideo)
     pipOverlayView.isHidden = false
-
-    // If the video is paused, it will end up in a weird state due to the
-    // animation. By forcing a redraw it will keep its paused image throughout.
-    // (At least) in 10.15, presentAsPictureInPicture: behaves asynchronously.
-    // Therefore we should wait until the view is moved to the PIP superview.
-    let currentTrackIsAlbumArt = player.info.currentTrack(.video)?.isAlbumart ?? false
-    if player.info.isPaused || currentTrackIsAlbumArt {
-      // It takes two `layout` before finishing entering PIP (tested on macOS 12, but
-      // could be earlier). Force redraw for the first two `layout`s.
-      videoView.pendingRedrawsAfterEnteringPIP = 2
-    }
 
     if let window = self.window {
       let windowShouldDoNothing = window.styleMask.contains(.fullScreen) || window.isMiniaturized

@@ -10,6 +10,18 @@ import Foundation
 
 class PlaybackInfo {
 
+  /// Enumeration representing the status of the [mpv](https://mpv.io/manual/stable/) A-B loop command.
+  ///
+  /// The A-B loop command cycles mpv through these states:
+  /// - Cleared (looping disabled)
+  /// - A loop point set
+  /// - B loop point set (looping enabled)
+  enum LoopStatus {
+    case cleared
+    case aSet
+    case bSet
+  }
+
   unowned let player: PlayerCore
 
   init(_ pc: PlayerCore) {
@@ -129,7 +141,7 @@ class PlaybackInfo {
   var videoTracks: [MPVTrack] = []
   var subTracks: [MPVTrack] = []
 
-  var abLoopStatus: Int = 0 // 0: none, 1: A set, 2: B set (looping)
+  var abLoopStatus: LoopStatus = .cleared
 
   /** Selected track IDs. Use these (instead of `isSelected` of a track) to check if selected */
   var aid: Int?
@@ -185,7 +197,10 @@ class PlaybackInfo {
   var chapters: [MPVChapter] = []
   var chapter = 0
 
-  var matchedSubs: [String: [URL]] = [:]
+  @Atomic var matchedSubs: [String: [URL]] = [:]
+
+  func getMatchedSubs(_ file: String) -> [URL]? { $matchedSubs.withLock { $0[file] } }
+
   var currentSubsInfo: [FileInfo] = []
   var currentVideosInfo: [FileInfo] = []
 

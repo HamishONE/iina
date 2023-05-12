@@ -49,6 +49,7 @@ struct AppData {
 
   static let githubLink = "https://github.com/iina/iina"
   static let contributorsLink = "https://github.com/iina/iina/graphs/contributors"
+  static let crowdinMembersLink = "https://crowdin.com/project/iina/members"
   static let wikiLink = "https://github.com/iina/iina/wiki"
   static let websiteLink = "https://iina.io"
   static let emailLink = "developers@iina.io"
@@ -58,6 +59,9 @@ struct AppData {
   static let assrtRegisterLink = "https://secure.assrt.net/user/register.xml?redir=http%3A%2F%2Fassrt.net%2Fusercp.php"
   static let chromeExtensionLink = "https://chrome.google.com/webstore/detail/open-in-iina/pdnojahnhpgmdhjdhgphgdcecehkbhfo"
   static let firefoxExtensionLink = "https://addons.mozilla.org/addon/open-in-iina-x"
+  static let toneMappingHelpLink = "https://en.wikipedia.org/wiki/Tone_mapping"
+  static let targetPeakHelpLink = "https://mpv.io/manual/stable/#options-target-peak"
+  static let algorithmHelpLink = "https://mpv.io/manual/stable/#options-tone-mapping"
 
   static let widthWhenNoVideo = 640
   static let heightWhenNoVideo = 360
@@ -127,4 +131,5 @@ extension Notification.Name {
   static let iinaPluginChanged = Notification.Name("IINAPluginChanged")
   static let iinaPlayerStopped = Notification.Name("iinaPlayerStopped")
   static let iinaPlayerShutdown = Notification.Name("iinaPlayerShutdown")
+  static let iinaPlaySliderLoopKnobChanged = Notification.Name("iinaPlaySliderLoopKnobChanged")
 }
