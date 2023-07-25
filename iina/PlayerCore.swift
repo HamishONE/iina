@@ -216,6 +216,10 @@ class PlayerCore: NSObject {
     }
   }
 
+  var isABLoopActive: Bool {
+    abLoopA != 0 && abLoopB != 0 && mpv.getString(MPVOption.PlaybackControl.abLoopCount) != "0"
+  }
+
   static var keyBindings: [String: KeyMapping] = [:]
 
   override init() {
@@ -294,12 +298,18 @@ class PlayerCore: NSObject {
     guard !urls.isEmpty else { return 0 }
     let urls = Utility.resolveURLs(urls)
 
-    // handle BD folders and m3u / m3u8 files first
-    if urls.count == 1 && (isBDFolder(urls[0]) ||
-      Utility.playlistFileExt.contains(urls[0].absoluteString.lowercasedPathExtension)) {
-      info.shouldAutoLoadFiles = false
-      open(urls[0])
-      return nil
+    // Handle folder URL (to support mpv shuffle, etc), BD folders and m3u / m3u8 files first.
+    // For these cases, mpv will load/build the playlist and notify IINA when it can be retrieved.
+    if urls.count == 1 {
+      let url = urls[0]
+
+      if url.isExistingDirectory
+          || isBDFolder(url)
+          || Utility.playlistFileExt.contains(url.absoluteString.lowercasedPathExtension) {
+        info.shouldAutoLoadFiles = false
+        open(url)
+        return nil
+      }
     }
 
     let playableFiles = getPlayableFiles(in: urls)
@@ -580,6 +590,9 @@ class PlayerCore: NSObject {
     if needRestoreLayout {
       if !Preference.bool(for: .musicModeShowAlbumArt) {
         miniPlayer.toggleVideoView(self)
+        if let origin = miniPlayer.window?.frame.origin {
+          miniPlayer.window?.setFrameOrigin(.init(x: origin.x, y: origin.y + miniPlayer.videoView.frame.height))
+        }
       }
       if Preference.bool(for: .musicModeShowPlaylist) {
         miniPlayer.togglePlaylist(self)
