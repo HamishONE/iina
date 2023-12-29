@@ -39,7 +39,7 @@ class PlayerCore: NSObject {
   /// - Important: Code referencing this property **must** be run on the main thread because it references
   ///              [NSApplication.mainWindow`](https://developer.apple.com/documentation/appkit/nsapplication/1428723-mainwindow)
   static var active: PlayerCore {
-    if let wc = NSApp.mainWindow?.windowController as? MainWindowController {
+    if let wc = NSApp.mainWindow?.windowController as? PlayerWindowController {
       return wc.player
     } else {
       return first
@@ -1787,8 +1787,8 @@ class PlayerCore: NSObject {
   }
 
   func syncUI(_ option: SyncUIOption) {
-    // if window not loaded, ignore
-    guard mainWindow.loaded else { return }
+    // If window is not loaded or stopping or shutting down, ignore.
+    guard mainWindow.loaded, !isStopping, !isStopped, !isShuttingDown, !isShutdown else { return }
     // This is too noisy and making verbose logs unreadable. Please uncomment when debugging syncing releated issues.
     // Logger.log("Syncing UI \(option)", level: .verbose, subsystem: subsystem)
 
