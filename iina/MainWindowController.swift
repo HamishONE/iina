@@ -2610,7 +2610,8 @@ class MainWindowController: PlayerWindowController {
   }
 
   func updateNetworkState() {
-    let needShowIndicator = player.info.pausedForCache || player.info.isSeeking
+    // let needShowIndicator = player.info.pausedForCache || player.info.isSeeking
+    let needShowIndicator = false
 
     if needShowIndicator {
       let usedStr = FloatingPointByteCountFormatter.string(fromByteCount: player.info.cacheUsed, prefixedBy: .ki)
