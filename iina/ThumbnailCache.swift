@@ -32,30 +32,102 @@ class ThumbnailCache: NSObject {
   static func fileExists(forName name: String) -> Bool {
     return FileManager.default.fileExists(atPath: urlFor(name).path)
   }
-
-  static func MD5_1MB(forVideo videoPath: URL) -> String {
-    let size = 1000000; // 1MB
-    
-    let fh = try! FileHandle(forReadingFrom: videoPath)
-    let bytes = fh.readData(ofLength: size)
-    
+  
+  static func get_cache_file_from_server(video_url: URL) async -> URL? {
+    if #available(macOS 12.0, *) {
+      
+      let video_components = URLComponents(url: video_url, resolvingAgainstBaseURL: false)!
+      
+      if let video_host = video_components.host, video_host.starts(with: "files."), video_components.scheme == "https" {
+        var thumb_components = URLComponents()
+        thumb_components.scheme = "https"
+        thumb_components.host = video_host.replacingOccurrences(of: "files.", with: "thumbs.")
+        thumb_components.user = video_components.user
+        thumb_components.password = video_components.password
+        thumb_components.path = "/"
+        thumb_components.queryItems = [
+          URLQueryItem(name: "file_path", value: video_components.path),
+          URLQueryItem(name: "thumb_width", value: String(Preference.integer(for: .thumbnailWidth)))
+        ]
+        let url = thumb_components.url!
+        Logger.log("Querrying '\(url)' ...", subsystem: subsystem)
+        
+        let request = URLRequest(url: url)
+        do {
+          let (downloadedURL, urlResponse) = try await URLSession.shared.download(for: request) as! (URL, HTTPURLResponse)
+          if urlResponse.statusCode == 200 {
+            Logger.log("Got HTTP response 200", subsystem: subsystem)
+            return downloadedURL
+          }
+          else {
+            Logger.log("Got HTTP response \(urlResponse.statusCode)", level: .error, subsystem: subsystem)
+            return nil
+          }
+        }
+        catch let error {
+          Logger.log("HTTP client error: "  + error.localizedDescription, level: .error, subsystem: subsystem)
+          return nil
+        }
+      }
+      else {
+        Logger.log("HTTP host '\(video_components.host ?? "ERROR")' not supported for thumbnails", subsystem: subsystem)
+        return nil
+      }
+    }
+    else {
+      Logger.log("macOS too old for HTTP requests", level: .warning, subsystem: subsystem)
+      return nil
+    }
+  }
+  
+  static let MD5_SIZE = 1000000; // 1MB
+  
+  static func MD5(data: Data) -> String {
     let digestLength = Int(CC_MD5_DIGEST_LENGTH)
     let md5Buffer = UnsafeMutablePointer<CUnsignedChar>.allocate(capacity: digestLength)
     
-    _ = bytes.withUnsafeBytes {
-      CC_MD5($0.baseAddress, CC_LONG(size), md5Buffer)
+    _ = data.withUnsafeBytes {
+      CC_MD5($0.baseAddress, CC_LONG(data.count), md5Buffer)
     }
     
     let output = NSMutableString(capacity: Int(CC_MD5_DIGEST_LENGTH * 2))
     for i in 0..<digestLength {
         output.appendFormat("%02x", md5Buffer[i])
     }
-    return NSString(format: output) as String
+    let hash = NSString(format: output) as String
+    Logger.log("File hash = \(hash)", subsystem: subsystem)
+    
+    return hash
+  }
+  
+  static func MD5_1MB(forVideo videoPath: URL) -> String {
+    let fh = try! FileHandle(forReadingFrom: videoPath)
+    let bytes = fh.readData(ofLength: MD5_SIZE)
+    
+    return MD5(data: bytes)
+  }
+
+  static func MD5_1MB_http(forVideo videoPath: URL) async -> String? {
+    let urlSession = URLSession.shared
+    var request = URLRequest(url: videoPath)
+    request.setValue("bytes=0-\(MD5_SIZE - 1)", forHTTPHeaderField: "Range")
+    
+    if #available(macOS 12.0, *) {
+      let (downloadedURL, _) = try! await urlSession.download(for: request) as (URL, URLResponse)
+      
+      let fh = try! FileHandle(forReadingFrom: downloadedURL)
+      let bytes = fh.readData(ofLength: MD5_SIZE)
+      
+      return MD5(data: bytes)
+    }
+    else {
+      Logger.log("macOS too old for HTTP requests", level: .warning, subsystem: subsystem)
+      return nil
+    }
   }
   
   static func fileIsCached(forVideo videoPath: URL?) -> Bool {
     let md5 = MD5_1MB(forVideo: videoPath!)
-    //Logger.log("fileIsCached(): MD5 = \(md5)", subsystem: subsystem)
     
     // Check in the cache
     if self.fileExists(forName: md5) {
@@ -140,16 +212,8 @@ class ThumbnailCache: NSObject {
     CacheManager.shared.needsRefresh = true
     Logger.log("Finished writing thumbnail cache.", subsystem: subsystem)
   }
-
-  /// Read thumbnail cache to file.
-  /// This method is expected to be called when the file exists.
-  static func read(forVideo videoPath: URL?) -> [FFThumbnail]? {
-    Logger.log("Reading thumbnail cache...", subsystem: subsystem)
-    
-    let md5 = MD5_1MB(forVideo: videoPath!)
-    //Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
-
-    let pathURL = urlFor(md5)
+  
+  static func read_cache_file(pathURL: URL) -> [FFThumbnail]? {
     guard let file = try? FileHandle(forReadingFrom: pathURL) else {
       Logger.log("Cannot open file.", level: .error, subsystem: subsystem)
       return nil
@@ -193,6 +257,16 @@ class ThumbnailCache: NSObject {
     file.closeFile()
     Logger.log("Finished reading thumbnail cache, \(result.count) in total", subsystem: subsystem)
     return result
+  }
+
+  /// Read thumbnail cache to file.
+  /// This method is expected to be called when the file exists.
+  static func read(forVideo videoPath: URL?) -> [FFThumbnail]? {
+    Logger.log("Reading thumbnail cache...", subsystem: subsystem)
+    
+    let md5 = MD5_1MB(forVideo: videoPath!)
+    let pathURL = urlFor(md5)
+    return read_cache_file(pathURL: pathURL)
   }
 
   private static func deleteCacheFile(at pathURL: URL) {

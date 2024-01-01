@@ -1938,7 +1938,7 @@ class PlayerCore: NSObject {
         self.touchBarSupport.touchBarPlaySlider?.resetCachedThumbnails()
       }
     }
-    guard !info.isNetworkResource, let url = info.currentURL else {
+    guard let url = info.currentURL else {
       Logger.log("...stopped because cannot get file path", subsystem: subsystem)
       return
     }
@@ -1948,10 +1948,32 @@ class PlayerCore: NSObject {
         return
       }
     }
+    
     if Preference.bool(for: .enableThumbnailPreview) {
-      if let forVideo = info.currentURL, !force_regen && ThumbnailCache.fileIsCached(forVideo: info.currentURL) {
-        Logger.log("Found thumbnail cache", subsystem: subsystem)
-        thumbnailQueue.async {
+      if info.isNetworkResource {
+        if #available(macOS 10.15, *) {
+          Task {
+            if let downloadedCacheFileUrl = await ThumbnailCache.get_cache_file_from_server(video_url: info.currentURL!) {
+              if let thumbnails = ThumbnailCache.read_cache_file(pathURL: downloadedCacheFileUrl) {
+                self.info.thumbnails = thumbnails
+                self.info.thumbnailsReady = true
+                self.info.thumbnailsProgress = 1
+                self.refreshTouchBarSlider()
+              } else {
+                Logger.log("Error reading thumbnail files from server", level: .error, subsystem: self.subsystem)
+              }
+            } else {
+              Logger.log("Request to server for thumbnails failed", level: .error, subsystem: self.subsystem)
+            }
+          }
+        }
+      }
+      else {
+        let forVideo = info.currentURL!
+        let is_cached = ThumbnailCache.fileIsCached(forVideo: info.currentURL)
+        if !force_regen && is_cached {
+          Logger.log("Found thumbnail cache", subsystem: subsystem)
+          
           if let thumbnails = ThumbnailCache.read(forVideo: forVideo) {
             self.info.thumbnails = thumbnails
             self.info.thumbnailsReady = true
@@ -1960,10 +1982,10 @@ class PlayerCore: NSObject {
           } else {
             Logger.log("Cannot read thumbnail from cache", level: .error, subsystem: self.subsystem)
           }
+        } else {
+          Logger.log("Request new thumbnails", subsystem: subsystem)
+          ffmpegController.generateThumbnail(forFile: url.path, thumbWidth:Int32(Preference.integer(for: .thumbnailWidth)))
         }
-      } else {
-        Logger.log("Request new thumbnails", subsystem: subsystem)
-        ffmpegController.generateThumbnail(forFile: url.path, thumbWidth:Int32(Preference.integer(for: .thumbnailWidth)))
       }
     }
   }
