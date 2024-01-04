@@ -49,6 +49,7 @@ class ThumbnailCache: NSObject {
           URLQueryItem(name: "file_path", value: video_components.path),
           URLQueryItem(name: "thumb_width", value: String(Preference.integer(for: .thumbnailWidth)))
         ]
+        thumb_components.percentEncodedQuery = thumb_components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         let url = thumb_components.url!
         Logger.log("Querrying '\(url)' ...", subsystem: subsystem)
         
