@@ -132,6 +132,10 @@ class PlayerCore: NSObject {
   var initialWindow: InitialWindowController!
   var miniPlayer: MiniPlayerWindowController!
 
+  var currentWindow: NSWindow? {
+    return isInMiniPlayer ? miniPlayer.window : mainWindow.window
+  }
+
   var mpv: MPVController!
 
   var plugins: [JavascriptPluginInstance] = []
@@ -541,6 +545,7 @@ class PlayerCore: NSObject {
 
     miniPlayer.updateTitle()
     syncUITime()
+    syncUI(.playButton)
     // When not in the mini player the timer that updates the OSC may be stopped to conserve energy
     // when the OSC is hidden. As the OSC is always displayed in the mini player ensure the timer is
     // running if media is playing.
@@ -647,7 +652,18 @@ class PlayerCore: NSObject {
     info.isPaused ? resume() : pause()
   }
 
+  /// Pause playback.
+  ///
+  /// - Important: Setting the `pause` property will cause `mpv` to emit a `MPV_EVENT_PROPERTY_CHANGE` event. The
+  ///     event will still be emitted even if the `mpv` core is idle. If the setting `Pause when machine goes to sleep` is
+  ///     enabled then `PlayerWindowController` will call this method in response to a
+  ///     `NSWorkspace.willSleepNotification`. That happens even if the window is closed and the player is idle. In
+  ///     response the event handler in `MPVController` will call `VideoView.displayIdle`. The suspicion is that calling this
+  ///     method results in a call to `CVDisplayLinkCreateWithActiveCGDisplays` which fails because the display is
+  ///     asleep. Thus `setFlag` **must not** be called if the `mpv` core is idle or stopping. See issue
+  ///     [#4520](https://github.com/iina/iina/issues/4520)
   func pause() {
+    guard !info.isIdle, !isStopping, !isStopped, !isShuttingDown, !isShutdown else { return }
     mpv.setFlag(MPVOption.PlaybackControl.pause, true)
   }
 
@@ -1108,12 +1124,19 @@ class PlayerCore: NSObject {
     mpv.command(nextMedia ? .playlistNext : .playlistPrev, checkError: false)
   }
 
-  func playChapter(_ pos: Int) {
-    let chapter = info.chapters[pos]
+  @discardableResult
+  func playChapter(_ pos: Int) -> MPVChapter? {
+    Logger.log("Seeking to chapter \(pos)", level: .verbose, subsystem: subsystem)
+    let chapters = info.chapters
+    guard pos < chapters.count else {
+      return nil
+    }
+    let chapter = chapters[pos]
     mpv.command(.seek, args: ["\(chapter.time.second)", "absolute"])
     resume()
     // need to update time pos
     syncUITime()
+    return chapter
   }
 
   func setCrop(fromString str: String) {
@@ -1863,6 +1886,7 @@ class PlayerCore: NSObject {
       DispatchQueue.main.async {
         // this should avoid sending reload when table view is not ready
         if self.isInMiniPlayer ? self.miniPlayer.isPlaylistVisible : self.mainWindow.sideBarStatus == .playlist {
+          Logger.log("Syncing UI: chapterList", level: .verbose)
           self.mainWindow.playlistView.chapterTableView.reloadData()
         }
       }
@@ -2075,17 +2099,20 @@ class PlayerCore: NSObject {
   }
 
   func getChapters() {
-    info.chapters.removeAll()
+    Logger.log("Reloading chapter list", level: .verbose, subsystem: subsystem)
+    var chapters: [MPVChapter] = []
     let chapterCount = mpv.getInt(MPVProperty.chapterListCount)
-    if chapterCount == 0 {
-      return
-    }
     for index in 0..<chapterCount {
       let chapter = MPVChapter(title:     mpv.getString(MPVProperty.chapterListNTitle(index)),
                                startTime: mpv.getDouble(MPVProperty.chapterListNTime(index)),
                                index:     index)
-      info.chapters.append(chapter)
+      chapters.append(chapter)
     }
+    // Instead of modifying existing list, overwrite reference to prev list.
+    // This will avoid concurrent modification crashes
+    info.chapters = chapters
+
+    syncUI(.chapterList)
   }
 
   // MARK: - Notifications
