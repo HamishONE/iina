@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -139,6 +139,9 @@
                                 <modifierMask key="keyEquivalentModifierMask"/>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="N0Z-h7-JSg"/>
+                            <menuItem title="Show Current File in Finder" id="che-dy-QUU">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
                             <menuItem title="Delete Current File" id="npH-8B-XA4">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                             </menuItem>
@@ -150,6 +153,10 @@
                                 <connections>
                                     <action selector="performClose:" target="-1" id="HmO-Ls-i7Q"/>
                                 </connections>
+                            </menuItem>
+                            <menuItem title="Other Actions From Key Bindings" hidden="YES" id="w2L-0L-eUk">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <menu key="submenu" title="Other Actions From Key Bindings" id="Yf9-Ns-n9l"/>
                             </menuItem>
                         </items>
                     </menu>
@@ -455,6 +462,9 @@ CA
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Audio Track" systemMenu="font" id="DRb-Y8-xir"/>
                             </menuItem>
+                            <menuItem title="Load External Audio…" id="3xl-iD-85w">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="H9C-r1-7eo"/>
                             <menuItem title="Volume:" enabled="NO" id="iQF-1S-9EK">
                                 <modifierMask key="keyEquivalentModifierMask"/>
@@ -533,9 +543,12 @@ CA
                                     </items>
                                 </menu>
                             </menuItem>
-                            <menuItem title="Second Subtitle" id="mGw-jm-5x2">
+                            <menuItem title="Hide Subtitles" id="smo-rw-rg7" userLabel="Hide Subtitles">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="Second Subtitle" systemMenu="font" id="UwY-P2-Xdb">
+                            </menuItem>
+                            <menuItem title="Secondary Subtitle" id="mGw-jm-5x2">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <menu key="submenu" title="Secondary Subtitle" systemMenu="font" id="UwY-P2-Xdb">
                                     <items>
                                         <menuItem title="&lt;None&gt;" id="9pa-9C-ueQ">
                                             <modifierMask key="keyEquivalentModifierMask"/>
@@ -545,6 +558,9 @@ CA
                                         </menuItem>
                                     </items>
                                 </menu>
+                            </menuItem>
+                            <menuItem title="Hide Secondary Subtitles" id="BOm-ia-wOV">
+                                <modifierMask key="keyEquivalentModifierMask"/>
                             </menuItem>
                             <menuItem title="Load External Subtitle…" id="k6x-hf-ATi">
                                 <modifierMask key="keyEquivalentModifierMask"/>
@@ -635,7 +651,8 @@ CA
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="eu3-7i-yIM"/>
                             <menuItem title="Inspector" keyEquivalent="i" id="bwz-r0-peR"/>
-                            <menuItem title="Log Viewer" keyEquivalent="L" id="0tJ-RQ-kuW">
+                            <menuItem title="Log Viewer" keyEquivalent="l" id="0tJ-RQ-kuW">
+                                <modifierMask key="keyEquivalentModifierMask" control="YES" command="YES"/>
                                 <connections>
                                     <action selector="showLogWindow:" target="Voe-Tx-rLC" id="2EU-WD-3kO"/>
                                 </connections>
@@ -729,6 +746,8 @@ CA
                 <outlet property="fullScreen" destination="6Eq-ni-6hG" id="y11-Q1-drn"/>
                 <outlet property="gotoScreenshotFolder" destination="lj0-Oo-7nB" id="Jlj-kX-fv0"/>
                 <outlet property="halfSize" destination="snW-S8-Cw5" id="PDi-lV-6HL"/>
+                <outlet property="hideSecondSubtitles" destination="BOm-ia-wOV" id="iKO-xG-GWA"/>
+                <outlet property="hideSubtitles" destination="smo-rw-rg7" id="LQB-s7-8Yy"/>
                 <outlet property="increaseAudioDelay" destination="4ae-MT-2L1" id="nsv-LC-B9o"/>
                 <outlet property="increaseAudioDelaySlightly" destination="lew-3S-oGY" id="Fo9-t3-WFI"/>
                 <outlet property="increaseSubDelay" destination="pAo-L5-qTO" id="55m-ex-for"/>
@@ -739,6 +758,7 @@ CA
                 <outlet property="inspector" destination="bwz-r0-peR" id="dES-1R-XAY"/>
                 <outlet property="jumpTo" destination="2id-wn-xsC" id="wyH-9I-JHJ"/>
                 <outlet property="jumpToBegin" destination="2Ya-3g-1hy" id="atq-PX-lIt"/>
+                <outlet property="loadExternalAudio" destination="3xl-iD-85w" id="e85-xo-lzs"/>
                 <outlet property="loadExternalSub" destination="k6x-hf-ATi" id="lVp-BV-A2C"/>
                 <outlet property="miniPlayer" destination="bGN-E4-V5A" id="gMc-FE-SVO"/>
                 <outlet property="mirror" destination="JJq-qH-toq" id="EWI-VS-c7Q"/>
@@ -755,6 +775,7 @@ CA
                 <outlet property="openAlternative" destination="z9W-ga-j3b" id="RRI-7o-x9o"/>
                 <outlet property="openURL" destination="0m7-3r-twH" id="BOj-Zv-hzW"/>
                 <outlet property="openURLAlternative" destination="bfB-bn-KeM" id="I7a-cV-JUC"/>
+                <outlet property="otherKeyBindingsMenu" destination="Yf9-Ns-n9l" id="SVX-M0-MuL"/>
                 <outlet property="pause" destination="UOE-MJ-8ku" id="74t-ZU-dXD"/>
                 <outlet property="pictureInPicture" destination="mND-N8-z6o" id="mrn-ku-bqH"/>
                 <outlet property="playbackMenu" destination="GEO-Iw-cKr" id="Ji3-Wv-EE5"/>
@@ -773,6 +794,7 @@ CA
                 <outlet property="resetAudioDelay" destination="H3d-jR-YCr" id="Qx9-n3-F90"/>
                 <outlet property="resetSubDelay" destination="SLr-6g-Mgh" id="8oW-hm-TNq"/>
                 <outlet property="resetTextSize" destination="P1a-ot-P31" id="fJk-GP-GBM"/>
+                <outlet property="showCurrentFileInFinder" destination="che-dy-QUU" id="p1H-Xj-dbg"/>
                 <outlet property="rotationMenu" destination="5xN-ZB-VLI" id="YGx-Ae-oMp"/>
                 <outlet property="saveDownloadedSub" destination="9zk-co-roT" id="lGr-mb-oHw"/>
                 <outlet property="savePlaylist" destination="Mjr-lL-oEt" id="ftc-bn-4Qi"/>

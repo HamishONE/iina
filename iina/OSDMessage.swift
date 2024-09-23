@@ -24,6 +24,8 @@ enum OSDType {
   case normal
   case withText(String)
   case withProgress(Double)
+  case withPosition(Double)
+  case withLeftToRightText(String)
 //  case withButton(String)
 }
 
@@ -44,6 +46,12 @@ enum OSDMessage {
   case audioDelay(Double)
   case subDelay(Double)
   case subScale(Double)
+  case subHidden
+  case subVisible
+  case secondSubDelay(Double)
+  case secondSubHidden
+  case secondSubPos(Double)
+  case secondSubVisible
   case subPos(Double)
   case mute
   case unMute
@@ -67,6 +75,7 @@ enum OSDMessage {
 
   case startFindingSub(String)  // sub source
   case foundSub(Int)
+  case downloadingSub(Int, String)  // download count, sub source
   case downloadedSub(String)  // filename
   case savedSub
   case cannotLogin
@@ -76,11 +85,50 @@ enum OSDMessage {
   case cannotConnect
   case timedOut
 
-  case fileLoop(Bool)
-  case playlistLoop(Bool)
+  case fileLoop
+  case playlistLoop
+  case noLoop
 
   case custom(String)
   case customWithDetail(String, String)
+
+  /// `True` if this OSD message has been suppressed by the user, otherwise `false`.
+  ///
+  /// Through settings on the `UI` tab a user can choose to not have certain OSD messages shown. This is useful in certain
+  /// applications such as looping in a kiosk or scrubbing through a video without distractions.
+  var isDisabled: Bool {
+    switch self {
+    case .fileStart: return Preference.bool(for: .disableOSDFileStartMsg)
+    case .pause: return Preference.bool(for: .disableOSDPauseResumeMsgs)
+    case .resume: return Preference.bool(for: .disableOSDPauseResumeMsgs)
+    case .seek: return Preference.bool(for: .disableOSDSeekMsg)
+    case .speed: return Preference.bool(for: .disableOSDSpeedMsg)
+    default: return false
+    }
+  }
+
+  /// `True` if this message must always be shown, otherwise `false`.
+  ///
+  /// A user may disable the OSD by unchecking the `Enable OSD` setting found on the `UI` tab in the `On Screen Display`
+  /// section of IINA's settings. Or they may check the `Use mpv's OSD` setting found on the `Advanced` tab which implicitly
+  /// disables IINA's OSD. _However_ not all OSD messages are optional notifications. The `Find Online Subtitles` feature
+  /// uses the OSD for its user interface. These messages must still be displayed when the OSD is disabled.
+  var alwaysEnabled: Bool {
+    switch self {
+    case .canceled: fallthrough
+    case .cannotConnect: fallthrough
+    case .cannotLogin: fallthrough
+    case .downloadedSub: fallthrough
+    case .fileError: fallthrough
+    case .foundSub: fallthrough
+    case .networkError: fallthrough
+    case .savedSub: fallthrough
+    case .startFindingSub: fallthrough
+    case .timedOut:
+      return true
+    default: return false
+    }
+  }
 
   func message() -> (String, OSDType) {
     switch self {
@@ -88,13 +136,15 @@ enum OSDMessage {
       return (filename, .normal)
 
     case .pause:
-      return (NSLocalizedString("osd.pause", comment: "Pause"), .withText("{{position}} / {{duration}}"))
+      return (NSLocalizedString("osd.pause", comment: "Pause"),
+              .withLeftToRightText("{{position}} / {{duration}}"))
 
     case .resume:
-      return (NSLocalizedString("osd.resume", comment: "Resume"), .withText("{{position}} / {{duration}}"))
+      return (NSLocalizedString("osd.resume", comment: "Resume"),
+              .withLeftToRightText("{{position}} / {{duration}}"))
 
     case .seek(let text, let percent):
-      return (text, .withProgress(percent))
+      return (text, .withPosition(percent))
 
     case .volume(let value):
       return (
@@ -155,6 +205,23 @@ enum OSDMessage {
         return (str, .withProgress(toPercent(value, 10)))
       }
 
+    case .secondSubDelay(let value):
+      if value == 0 {
+        return (
+          NSLocalizedString("osd.sub_second_delay.nodelay", comment: "Secondary Subtitle Delay: No Delay"),
+          .withProgress(0.5)
+        )
+      } else {
+        let str = value > 0 ? String(format: NSLocalizedString("osd.sub_second_delay.later", comment: "Secondary Subtitle Delay: %fs Later"),abs(value)) : String(format: NSLocalizedString("osd.sub_second_delay.earlier", comment: "Secondary Subtitle Delay: %fs Earlier"), abs(value))
+        return (str, .withProgress(toPercent(value, 10)))
+      }
+
+    case .secondSubPos(let value):
+      return (
+        String(format: NSLocalizedString("osd.sub_second_pos", comment: "Secondary Subtitle Position: %f"), value),
+        .withProgress(value / 100)
+      )
+
     case .subDelay(let value):
       if value == 0 {
         return (
@@ -172,6 +239,18 @@ enum OSDMessage {
         .withProgress(value / 100)
       )
 
+    case .subHidden:
+      return (NSLocalizedString("osd.sub_hidden", comment: "Subtitles Hidden"), .normal)
+
+    case .subVisible:
+      return (NSLocalizedString("osd.sub_visible", comment: "Subtitles Visible"), .normal)
+
+    case .secondSubHidden:
+      return (NSLocalizedString("osd.sub_second_hidden", comment: "Second Subtitles Hidden"), .normal)
+
+    case .secondSubVisible:
+      return (NSLocalizedString("osd.sub_second_visible", comment: "Second Subtitles Visible"), .normal)
+
     case .mute:
       return (NSLocalizedString("osd.mute", comment: "Mute"), .normal)
 
@@ -187,9 +266,11 @@ enum OSDMessage {
       case .cleared:
         return (NSLocalizedString("osd.abloop.clear", comment: "AB-Loop: Cleared"), .normal)
       case .aSet:
-        return (NSLocalizedString("osd.abloop.a", comment: "AB-Loop: A"), .withText("{{position}} / {{duration}}"))
+        return (NSLocalizedString("osd.abloop.a", comment: "AB-Loop: A"),
+                .withLeftToRightText("{{position}} / {{duration}}"))
       case .bSet:
-        return (NSLocalizedString("osd.abloop.b", comment: "AB-Loop: B"), .withText("{{position}} / {{duration}}"))
+        return (NSLocalizedString("osd.abloop.b", comment: "AB-Loop: B"),
+                .withLeftToRightText("{{position}} / {{duration}}"))
       }
 
     case .abLoopUpdate(let value, let position):
@@ -198,9 +279,11 @@ enum OSDMessage {
       case .cleared:
         Logger.fatal("Attempt to display invalid OSD message, type: .abLoopUpdate value: .cleared position \(position)")
       case .aSet:
-        return (NSLocalizedString("osd.abloop.a", comment: "AB-Loop: A"), .withText("\(position) / {{duration}}"))
+        return (NSLocalizedString("osd.abloop.a", comment: "AB-Loop: A"),
+                .withLeftToRightText("\(position) / {{duration}}"))
       case .bSet:
-        return (NSLocalizedString("osd.abloop.b", comment: "AB-Loop: B"), .withText("\(position) / {{duration}}"))
+        return (NSLocalizedString("osd.abloop.b", comment: "AB-Loop: B"),
+                .withLeftToRightText("\(position) / {{duration}}"))
       }
 
     case .stop:
@@ -209,17 +292,23 @@ enum OSDMessage {
     case .chapter(let name):
       return (
         String(format: NSLocalizedString("osd.chapter", comment: "Chapter: %@"), name),
-        .withText("({{currChapter}}/{{chapterCount}}) {{position}} / {{duration}}")
+        .withLeftToRightText("({{currChapter}}/{{chapterCount}}) {{position}} / {{duration}}")
       )
 
     case .track(let track):
-      let trackTypeStr: String
+      let keySuffix: String
       switch track.type {
-      case .video: trackTypeStr = "Video"
-      case .audio: trackTypeStr = "Audio"
-      case .sub: trackTypeStr = "Subtitle"
-      case .secondSub: trackTypeStr = "Second Subtitle"
+      case .video: keySuffix = "video"
+      case .audio: keySuffix = "audio"
+      case .sub: keySuffix = "sub"
+      case .secondSub:
+        // This enum constant is only used for setting the secondary subtitle. No track should use
+        // this type. This is an internal error.
+        Logger.log("Invalid subtitle track type: secondSub", level: .error)
+        keySuffix = "sub"
       }
+      let trackTypeStr = String(format: NSLocalizedString("track." + keySuffix,
+        comment: "Kind of track (Audio, Video, Subtitle)"))
       return (trackTypeStr + ": " + track.readableTitle, .normal)
 
     case .subScale(let value):
@@ -288,8 +377,12 @@ enum OSDMessage {
     case .foundSub(let count):
       let str = count == 0 ?
         NSLocalizedString("osd.sub_not_found", comment: "No subtitles found.") :
-        String(format: NSLocalizedString("osd.sub_found", comment: "%d subtitle(s) found. Downloading..."), count)
+        String(format: NSLocalizedString("osd.sub_found", comment: "%d subtitle(s) found."), count)
       return (str, .normal)
+
+    case .downloadingSub(let count, let source):
+      let str = String(format: NSLocalizedString("osd.sub_downloading", comment: "Downloading %d subtitles"), count)
+      return (str, .withText(NSLocalizedString("osd.find_online_sub.source", comment: "from") + " " + source))
 
     case .downloadedSub(let filename):
       return (
@@ -339,19 +432,24 @@ enum OSDMessage {
         .normal
       )
 
-    case .fileLoop(let enabled):
+    case .fileLoop:
       return (
-        String(format: NSLocalizedString("osd.file_loop", comment: "File Loop: %@"),
-               enabled ? NSLocalizedString("general.on", comment: "On") : NSLocalizedString("general.off", comment: "Off")),
-        .normal
+        NSLocalizedString("osd.file_loop", comment: "Enable file looping"),
+          .normal
       )
 
-    case .playlistLoop(let enabled):
+    case .playlistLoop:
       return (
-        String(format: NSLocalizedString("osd.playlist_loop", comment: "Playlist Loop: %@"),
-               enabled ? NSLocalizedString("general.on", comment: "On") : NSLocalizedString("general.off", comment: "Off")),
-        .normal
+        NSLocalizedString("osd.playlist_loop", comment: "Enable playlist looping"), 
+          .normal
       )
+
+    case .noLoop:
+      return (
+        NSLocalizedString("osd.no_loop", comment: "Disable loop"),
+          .normal
+      )
+
     case .custom(let message):
       return (message, .normal)
 

@@ -28,6 +28,10 @@ class ThumbnailCache: NSObject {
   private static let imageProperties: [NSBitmapImageRep.PropertyKey: Any] = [
     .compressionFactor: 0.75
   ]
+  
+  private static func log(_ message: String, level: Logger.Level = .debug) {
+    Logger.log(message, level: level, subsystem: subsystem)
+  }
 
   static func fileExists(forName name: String) -> Bool {
     return FileManager.default.fileExists(atPath: urlFor(name).path)
@@ -51,32 +55,32 @@ class ThumbnailCache: NSObject {
         ]
         thumb_components.percentEncodedQuery = thumb_components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         let url = thumb_components.url!
-        Logger.log("Querrying '\(url)' ...", subsystem: subsystem)
+        log("Querrying '\(url)' ...")
         
         let request = URLRequest(url: url)
         do {
           let (downloadedURL, urlResponse) = try await URLSession.shared.download(for: request) as! (URL, HTTPURLResponse)
           if urlResponse.statusCode == 200 {
-            Logger.log("Got HTTP response 200", subsystem: subsystem)
+            log("Got HTTP response 200")
             return downloadedURL
           }
           else {
-            Logger.log("Got HTTP response \(urlResponse.statusCode)", level: .error, subsystem: subsystem)
+            log("Got HTTP response \(urlResponse.statusCode)", level: .error)
             return nil
           }
         }
         catch let error {
-          Logger.log("HTTP client error: "  + error.localizedDescription, level: .error, subsystem: subsystem)
+          log("HTTP client error: "  + error.localizedDescription, level: .error)
           return nil
         }
       }
       else {
-        Logger.log("HTTP host '\(video_components.host ?? "ERROR")' not supported for thumbnails", subsystem: subsystem)
+        log("HTTP host '\(video_components.host ?? "ERROR")' not supported for thumbnails")
         return nil
       }
     }
     else {
-      Logger.log("macOS too old for HTTP requests", level: .warning, subsystem: subsystem)
+      log("macOS too old for HTTP requests", level: .warning)
       return nil
     }
   }
@@ -96,7 +100,7 @@ class ThumbnailCache: NSObject {
         output.appendFormat("%02x", md5Buffer[i])
     }
     let hash = NSString(format: output) as String
-    Logger.log("File hash = \(hash)", subsystem: subsystem)
+    log("File hash = \(hash)")
     
     return hash
   }
@@ -122,7 +126,7 @@ class ThumbnailCache: NSObject {
       return MD5(data: bytes)
     }
     else {
-      Logger.log("macOS too old for HTTP requests", level: .warning, subsystem: subsystem)
+      log("macOS too old for HTTP requests", level: .warning)
       return nil
     }
   }
@@ -133,7 +137,7 @@ class ThumbnailCache: NSObject {
     // Check in the cache
     if self.fileExists(forName: md5) {
       guard (try? FileHandle(forReadingFrom: urlFor(md5))) != nil else {
-        Logger.log("Cannot open cache file.", level: .error, subsystem: subsystem)
+        log("Cannot open cache file.", level: .error)
         return false
       }
       return true
@@ -144,10 +148,10 @@ class ThumbnailCache: NSObject {
   /// Write thumbnail cache to file.
   /// This method is expected to be called when the file doesn't exist.
   static func write(_ thumbnails: [FFThumbnail], forVideo videoPath: URL?) {
-    Logger.log("Writing thumbnail cache...", subsystem: subsystem)
+    log("Writing thumbnail cache...")
     
     let md5 = MD5_1MB(forVideo: videoPath!)
-    //Logger.log("write(): MD5 = \(md5)", subsystem: subsystem)
+    //log("write(): MD5 = \(md5)")
 
     let maxCacheSize = Preference.integer(for: .maxThumbnailPreviewCacheSize) * FloatingPointByteCountFormatter.PrefixFactor.mi.rawValue
     if maxCacheSize == 0 {
@@ -158,11 +162,11 @@ class ThumbnailCache: NSObject {
 
     let pathURL = urlFor(md5)
     guard FileManager.default.createFile(atPath: pathURL.path, contents: nil, attributes: nil) else {
-      Logger.log("Cannot create file.", level: .error, subsystem: subsystem)
+      log("Cannot create file.", level: .error)
       return
     }
     guard let file = try? FileHandle(forWritingTo: pathURL) else {
-      Logger.log("Cannot write to file.", level: .error, subsystem: subsystem)
+      log("Cannot write to file.", level: .error)
       return
     }
 
@@ -171,13 +175,13 @@ class ThumbnailCache: NSObject {
     file.write(versionData)
 
     guard let fileAttr = try? FileManager.default.attributesOfItem(atPath: videoPath!.path) else {
-      Logger.log("Cannot get video file attributes", level: .error, subsystem: subsystem)
+      log("Cannot get video file attributes", level: .error)
       return
     }
 
     // file size
     guard let fileSize = fileAttr[.size] as? FileSize else {
-      Logger.log("Cannot get video file size", level: .error, subsystem: subsystem)
+      log("Cannot get video file size", level: .error)
       return
     }
     let fileSizeData = Data(bytesOf: fileSize)
@@ -185,7 +189,7 @@ class ThumbnailCache: NSObject {
 
     // modified date
     guard let fileModifiedDate = fileAttr[.modificationDate] as? Date else {
-      Logger.log("Cannot get video file modification date", level: .error, subsystem: subsystem)
+      log("Cannot get video file modification date", level: .error)
       return
     }
     let fileTimestamp = FileTimestamp(fileModifiedDate.timeIntervalSince1970)
@@ -196,11 +200,11 @@ class ThumbnailCache: NSObject {
     for tb in thumbnails {
       let timestampData = Data(bytesOf: tb.realTime)
       guard let tiffData = tb.image?.tiffRepresentation else {
-        Logger.log("Cannot generate tiff data.", level: .error, subsystem: subsystem)
+        log("Cannot generate tiff data.", level: .error)
         return
       }
       guard let jpegData = NSBitmapImageRep(data: tiffData)?.representation(using: .jpeg, properties: imageProperties) else {
-        Logger.log("Cannot generate jpeg data.", level: .error, subsystem: subsystem)
+        log("Cannot generate jpeg data.", level: .error)
         return
       }
       let blockLength = Int64(timestampData.count + jpegData.count)
@@ -211,15 +215,15 @@ class ThumbnailCache: NSObject {
     }
 
     CacheManager.shared.needsRefresh = true
-    Logger.log("Finished writing thumbnail cache.", subsystem: subsystem)
+    log("Finished writing thumbnail cache.")
   }
   
   static func read_cache_file(pathURL: URL) -> [FFThumbnail]? {
     guard let file = try? FileHandle(forReadingFrom: pathURL) else {
-      Logger.log("Cannot open file.", level: .error, subsystem: subsystem)
+      log("Cannot open file.", level: .error)
       return nil
     }
-    Logger.log("Reading from \(pathURL.path)", subsystem: subsystem)
+    log("Reading from \(pathURL.path)")
 
     var result: [FFThumbnail] = []
 
@@ -235,7 +239,7 @@ class ThumbnailCache: NSObject {
       // length and timestamp
       guard let blockLength = file.read(type: Int64.self),
             let timestamp = file.read(type: Double.self) else {
-        Logger.log("Cannot read image header. Cache file will be deleted.", level: .warning, subsystem: subsystem)
+        log("Cannot read image header. Cache file will be deleted.", level: .warning)
         file.closeFile()
         deleteCacheFile(at: pathURL)
         return nil
@@ -243,7 +247,7 @@ class ThumbnailCache: NSObject {
       // jpeg
       let jpegData = file.readData(ofLength: Int(blockLength) - MemoryLayout.size(ofValue: timestamp))
       guard let image = NSImage(data: jpegData) else {
-        Logger.log("Cannot read image. Cache file will be deleted.", level: .warning, subsystem: subsystem)
+        log("Cannot read image. Cache file will be deleted.", level: .warning)
         file.closeFile()
         deleteCacheFile(at: pathURL)
         return nil
@@ -256,14 +260,14 @@ class ThumbnailCache: NSObject {
     }
 
     file.closeFile()
-    Logger.log("Finished reading thumbnail cache, \(result.count) in total", subsystem: subsystem)
+    log("Finished reading thumbnail cache, \(result.count) in total")
     return result
   }
 
   /// Read thumbnail cache to file.
   /// This method is expected to be called when the file exists.
   static func read(forVideo videoPath: URL?) -> [FFThumbnail]? {
-    Logger.log("Reading thumbnail cache...", subsystem: subsystem)
+    log("Reading thumbnail cache...")
     
     let md5 = MD5_1MB(forVideo: videoPath!)
     let pathURL = urlFor(md5)
@@ -275,7 +279,7 @@ class ThumbnailCache: NSObject {
     do {
       try FileManager.default.removeItem(at: pathURL)
     } catch {
-      Logger.log("Cannot delete corrupted cache.", level: .error, subsystem: subsystem)
+      log("Cannot delete corrupted cache.", level: .error)
     }
   }
 

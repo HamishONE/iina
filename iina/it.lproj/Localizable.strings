@@ -16,6 +16,9 @@
 "general.username" = "Nome utente";
 "general.password" = "Password";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "In evidenza";
 "guide.basic_settings" = "Impostazioni di base";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Le Nightly sono versioni di sviluppo instabili e non adatte all'utilizzo quotidiano. Attualmente, inoltre, non sono aggiornate automaticamente: se desideri, puoi scaricarle dalla <a href=\"https://nightly.iina.io\">pagina dedicata</a>.";
 "initial.debug.desc" = "Le versioni di debug sono dedicate alla raccolta di dati per la risoluzione di problemi e per altre finalità analitiche. Non sono ottimizzate per le prestazioni e non prevedono aggiornamenti automatici; in generale se ne sconsiglia l'utilizzo.";
 "initial.bug_report" = "Segnala tramite <a href=\"https://github.com/iina/iina/issues\">GitHub</a>.";
+
+// Inspector Window
+"inspector.error" = "Errore";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Buffer… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Decodifica dell'Hardware";
 "quicksetting.deinterlace" = "Deinterlacciamento";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Nascondi";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Pausa";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Differenza sottotitoli: %.2fs dopo";
 "osd.sub_delay.earlier" = "Differenza sottotitoli: %.2fs prima";
 "osd.subtitle_pos" = "Posizione sottotitoli: %.1f";
+"osd.sub_hidden" = "Nascondere Sottotitoli";
+"osd.sub_visible" = "Mostrare Sottotitoli";
+"osd.sub_second_delay.nodelay" = "Ritardo Sottotitoli Secondari: Nessun Ritardo";
+"osd.sub_second_delay.later" = "Ritardo Sottotitoli Secondari: %.2fs Dopo";
+"osd.sub_second_delay.earlier" = "Ritardo Sottotitoli Secondari: %.2fs Prima";
+"osd.sub_second_hidden" = "Nascondere Sottotitoli Secondari";
+"osd.sub_second_pos" = "Posizione Sottotitoli Secondari: %.1f";
+"osd.sub_second_visible" = "Mostrare Sottotitoli Secondari";
 "osd.mute" = "Muto";
 "osd.unmute" = "Attiva";
 "osd.screenshot" = "Schermata catturata";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Trova sottotitoli online…";
 "osd.find_online_sub.source" = "da";
 "osd.sub_not_found" = "Sottotitoli non trovati";
-"osd.sub_found" = "%d sottotitolo(i) trovato(i). In download…";
+"osd.sub_found" = "%d sottotitoli trovati.";
+"osd.sub_downloading" = "Scaricamento %d sottotitoli";
 "osd.sub_downloaded" = "Sottotitoli scaricati";
 "osd.sub_saved" = "Sottotitoli salvati";
 "osd.network_error" = "Errore di rete";
 "osd.file_error" = "Errore lettura file";
 "osd.cannot_login" = "Login non riuscito";
 "osd.canceled" = "Annullato";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "Impossibile connettersi";
+"osd.timed_out" = "Tempo scaduto";
 "osd.filter_added" = "Aggiungto filtro: %@";
 "osd.filter_removed" = "Filtro rimosso";
-"osd.file_loop" = "Ripeti file: %@";
-"osd.playlist_loop" = "Ripeti playlist: %@";
+"osd.file_loop" = "Ripeti il file singolo";
+"osd.playlist_loop" = "Ripeti la playlist";
+"osd.no_loop" = "Disabilita ripetizione";
 
 "preference.title" = "Preferenze";
 "preference.general" = "Generali";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Abilita impostazioni avanzate";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "striscia";
+"preference.sub_override_level.yes" = "sì";
+
 "menu.volume" = "Volume: %d";
 "menu.volume_muted" = "Volume: %d (Spento)";
 "menu.audio_delay" = "Differenza audio: %.2fs";
 "menu.sub_delay" = "Differenza sottotitoli: %.2fs";
+"menu.sub_hide" = "Nascondere Sottotitoli";
+"menu.sub_show" = "Mostra sottotitoli";
+"menu.sub_second_hide" = "Nascondi Sottotitoli Secondari";
+"menu.sub_second_show" = "Mostra Sottotitoli Secondari";
 "menu.fullscreen" = "Attiva modalità a tutto schermo";
 "menu.exit_fullscreen" = "Disattiva modalità a tutto schermo";
 "menu.pip" = "Attiva Picture-in-Picture";
 "menu.exit_pip" = "Termina Picture-in-Picture";
+"menu.mini_player" = "Attiva Modalità Musica";
+"menu.exit_mini_player" = "Esci da Modalità Musica";
 "menu.pause" = "Pausa";
 "menu.resume" = "Riprendi";
 "menu.speed" = "Velocità: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Ritarda sottotitoli + %.1fs";
 "menu.sub_delay_down" = "Anticipa sottotitoli - %.1fs";
 
-"menu.crop_custom" = "Personalizzato...";
+"menu.crop_custom" = "Altro…";
 "menu.find_online_sub" = "Trova sottotitoli online da %@";
 
+"track.audio" = "Audio";
 "track.none" = "<Nessuno>";
+"track.sub" = "Sottotitoli";
+"track.video" = "Video";
 
 "subtrack.no_loaded" = "Nessun sottotitolo caricato";
 "subtrack.no_external" = "Nessun sottotitolo esterno trovato";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Fatal error: %@ \nL'appicazione verrà subito chiusa.";
 "alert.mpv_error" = "Errore %@ (%@) nell'impostazioni dell'utente %@.";
-"alert.sleep" = "Impossibile impedire lo stop dello schermo! (0x%0X8)";
 
 "alert.unsupported_audio" = "File audo esterno non supportato.";
 "alert.unsupported_sub" = "Sottotitoli esterni non supportati.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Configurazione del duplicato";
 "alert.config.duplicate.message" = "Inserisci il nome per il duplicato del file di configurazione.";
 "alert.config.empty_name" = "Il nome non può essere vuoto.";
-"alert.config.name_existing" = "Il nome esite già.";
+"alert.config.name_existing" = "Esiste già un profilo con lo stesso nome.";
 "alert.config.file_existing.title" = "Il file è già esistente";
-"alert.config.file_existing.message" = "Questo non sarebbe dovuto succedere. Scegli OK per sovrascrivere, Annulla per mostrere il file nel Finder.";
+"alert.config.file_existing.message" = "Esiste già un file di configurazione con lo stesso nome di file. Scegliere OK per mostrare il file in Finder.";
 "alert.config.cannot_create" = "Impossibile creare il file di configurazione!\n%@";
 "alert.config.cannot_write" = "Impossibile scrivere il file di configurazione!";
+"alert.config.rename.title" = "Rinomina Configurazione Input";
+"alert.config.rename.message" = "Inserisci un nome per la nuova configurazione.";
 
 "alert.filter.incorrect" = "Si è verificato un errore durante l'impostazione dei filtri. Verifica il formato dei parametri.";
 "alert.add_filter.title" = "Nuovo filtro";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Inverti a tutto schermo";
 "osc_toolbar.music_mode" = "Attiva la modalità musicale";
 "osc_toolbar.sub_track" = "Scegli la traccia dei sottotitoli";
+"osc_toolbar.screenshot" = "Cattura la schermata";
 
 "mini_player.album_art" = "Attiva/Disattiva copertina album";
 "mini_player.loop" = "Ripeti";

@@ -487,8 +487,6 @@
 				<string>aiff</string>
 				<string>ape</string>
 				<string>caf</string>
-				<string>mid</string>
-				<string>midi</string>
 				<string>pcm</string>
 				<string>vox</string>
 				<string>tta</string>
@@ -707,7 +705,7 @@
 				<string>public.audio</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Monkey's Audio Lossless Audio</string>
+			<string>Monkey&apos;s Audio Lossless Audio</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.iina.ape</string>
 			<key>UTTypeTagSpecification</key>
@@ -1235,23 +1233,6 @@
 				<string>public.audio</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>MIDI File</string>
-			<key>UTTypeIdentifier</key>
-			<string>io.iina.mid</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>mid</string>
-				</array>
-			</dict>
-		</dict>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.audio</string>
-			</array>
-			<key>UTTypeDescription</key>
 			<string>Matroska Audio File</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.iina.mka</string>
@@ -1362,5 +1343,9 @@
 	<string>$(CONFIGURATION)</string>
 	<key>com.colliderli.iina.build.date</key>
 	<string>IINA_BUILD_DATE</string>
+	<key>com.colliderli.iina.build.sdk</key>
+	<string>$(SDK_VERSION)</string>
+	<key>com.colliderli.iina.build.xcode</key>
+	<string>$(XCODE_VERSION_ACTUAL)</string>
 </dict>
 </plist>

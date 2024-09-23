@@ -22,18 +22,66 @@ class PlaybackInfo {
     case bSet
   }
 
+  enum MediaIsAudioStatus {
+    case unknown
+    case isAudio
+    case notAudio
+  }
+
   unowned let player: PlayerCore
 
   init(_ pc: PlayerCore) {
     player = pc
   }
 
-  var isIdle: Bool = true {
+  // TODO: - Change log level of state changed message to be .verbose once state is confirmed working.
+
+  /// The state the `PlayerCore` is in.
+  /// - Note: A computed property is used to prevent inappropriate state changes. When IINA terminates players that are actively
+  ///     playing will first be stopped and then shutdown. Once a player has stopped the mpv core will go idle. This happens
+  ///     asynchronously and could occur after the quit command has been sent to mpv. Thus we must be sure the state does not
+  ///     transition from `.shuttingDown` to `.idle`.
+  var state: PlayerState = .idle {
     didSet {
-      PlayerCore.checkStatusForSleep()
+      guard state != oldValue else { return }
+      // Once the player is in the shuttingDown state it can only move to the shutDown state. Once
+      // in the shutDown state the state can't change.
+      guard oldValue != .loading || state != .idle,
+            oldValue != .shuttingDown || state == .shutDown, oldValue != .shutDown else {
+        player.log("Blocked attempt to change state from \(oldValue) to \(state)")
+        state = oldValue
+        return
+      }
+      player.log("State changed from \(oldValue) to \(state)")
+      switch state {
+      case .idle:
+        PlayerCore.checkStatusForSleep()
+      case .playing:
+        PlayerCore.checkStatusForSleep()
+        if player == PlayerCore.lastActive {
+          if RemoteCommandController.useSystemMediaControl {
+            NowPlayingInfoManager.updateInfo(state: .playing)
+          }
+          if player.mainWindow.pipStatus == .inPIP {
+            player.mainWindow.pip.playing = true
+          }
+        }
+      case .paused:
+        PlayerCore.checkStatusForSleep()
+        if player == PlayerCore.lastActive {
+          if RemoteCommandController.useSystemMediaControl {
+            NowPlayingInfoManager.updateInfo(state: .paused)
+          }
+          if player.mainWindow.pipStatus == .inPIP {
+            player.mainWindow.pip.playing = false
+          }
+        }
+      default: return
+      }
     }
   }
-  var fileLoading: Bool = false
+
+  var isSeeking: Bool = false
 
   var currentURL: URL? {
     didSet {
@@ -67,28 +115,15 @@ class PlaybackInfo {
     if position.second > duration.second { position.second = duration.second }
   }
 
-  var isSeeking: Bool = false
-
-  var isPaused: Bool = false {
-    didSet {
-      PlayerCore.checkStatusForSleep()
-      if player == PlayerCore.lastActive {
-        if #available(macOS 10.13, *), RemoteCommandController.useSystemMediaControl {
-          NowPlayingInfoManager.updateInfo(state: isPaused ? .paused : .playing)
-        }
-        if #available(macOS 10.12, *), player.mainWindow.pipStatus == .inPIP {
-          player.mainWindow.pip.playing = isPlaying
-        }
-      }
+  var isAudio: MediaIsAudioStatus {
+    guard !isNetworkResource else { return .notAudio }
+    let noVideoTrack = videoTracks.isEmpty
+    let noAudioTrack = audioTracks.isEmpty
+    if noVideoTrack && noAudioTrack {
+      return .unknown
     }
-  }
-  var isPlaying: Bool {
-    get {
-      return !isPaused
-    }
-    set {
-      isPaused = !newValue
-    }
+    let allVideoTracksAreAlbumCover = !videoTracks.contains { !$0.isAlbumart }
+    return (noVideoTrack || allVideoTracksAreAlbumCover) ? .isAudio : .notAudio
   }
 
   var justStartedFile: Bool = false
@@ -103,7 +138,7 @@ class PlaybackInfo {
   var cropFilter: MPVFilter?
   var flipFilter: MPVFilter?
   var mirrorFilter: MPVFilter?
-  var audioEqFilters: [MPVFilter?]?
+  var audioEqFilter: MPVFilter?
   var delogoFilter: MPVFilter?
 
   var deinterlace: Bool = false
@@ -139,15 +174,18 @@ class PlaybackInfo {
 
   var audioTracks: [MPVTrack] = []
   var videoTracks: [MPVTrack] = []
-  var subTracks: [MPVTrack] = []
+  @Atomic var subTracks: [MPVTrack] = []
 
   var abLoopStatus: LoopStatus = .cleared
 
   /** Selected track IDs. Use these (instead of `isSelected` of a track) to check if selected */
-  var aid: Int?
-  var sid: Int?
-  var vid: Int?
-  var secondSid: Int?
+  @Atomic var aid: Int?
+  @Atomic var sid: Int?
+  @Atomic var vid: Int?
+  @Atomic var secondSid: Int?
+
+  var isSubVisible = true
+  var isSecondSubVisible = true
 
   var subEncoding: String?
 
@@ -268,19 +306,21 @@ class PlaybackInfo {
     }
   }
 
-  var thumbnailsReady = false
-  var thumbnailsProgress: Double = 0
-  var thumbnails: [FFThumbnail] = []
+  @Atomic var thumbnailsReady = false
+  @Atomic var thumbnailsProgress: Double = 0
+  @Atomic var thumbnails: [FFThumbnail] = []
 
   func getThumbnail(forSecond sec: Double) -> FFThumbnail? {
-    guard !thumbnails.isEmpty else { return nil }
-    var tb = thumbnails.last!
-    for i in 0..<thumbnails.count {
-      if thumbnails[i].realTime >= sec {
-        tb = thumbnails[(i == 0 ? i : i - 1)]
-        break
+    $thumbnails.withLock {
+      guard !$0.isEmpty else { return nil }
+      var tb = $0.last!
+      for i in 0..<$0.count {
+        if $0[i].realTime >= sec {
+          tb = $0[(i == 0 ? i : i - 1)]
+          break
+        }
       }
+      return tb
     }
-    return tb
   }
 }

@@ -7,6 +7,7 @@
 //
 
 import Cocoa
+import CryptoKit
 
 extension NSSlider {
   /** Returns the position of knob center by point */
@@ -280,6 +281,15 @@ extension BinaryInteger {
   }
 }
 
+// Formats a number to max 2 digits after the decimal, rounded, but will omit trailing zeroes, and no commas or other formatting for large numbers
+fileprivate let fmtDecimalMaxFractionDigits2: NumberFormatter = {
+  let fmt = NumberFormatter()
+  fmt.numberStyle = .decimal
+  fmt.usesGroupingSeparator = false
+  fmt.maximumFractionDigits = 2
+  return fmt
+}()
+
 extension FloatingPoint {
   func clamped(to range: Range<Self>) -> Self {
     if self < range.lowerBound {
@@ -290,6 +300,12 @@ extension FloatingPoint {
       return self
     }
   }
+
+  /// Formats as String, rounding the number to 2 digits after the decimal
+  var stringWithMaxFractionDigits2: String {
+    return fmtDecimalMaxFractionDigits2.string(for: self)!
+  }
+
 }
 
 extension NSColor {
@@ -331,40 +347,8 @@ extension NSMutableAttributedString {
   }
 }
 
-
-extension UserDefaults {
-
-  func mpvColor(forKey key: String) -> String? {
-    guard let data = self.data(forKey: key) else { return nil }
-    guard let color = NSUnarchiver.unarchiveObject(with: data) as? NSColor else { return nil }
-    return color.usingColorSpace(.deviceRGB)?.mpvColorString
-  }
-}
-
-
-extension NSData {
-  func md5() -> NSString {
-    let digestLength = Int(CC_MD5_DIGEST_LENGTH)
-    let md5Buffer = UnsafeMutablePointer<CUnsignedChar>.allocate(capacity: digestLength)
-
-    CC_MD5(bytes, CC_LONG(length), md5Buffer)
-
-    let output = NSMutableString(capacity: Int(CC_MD5_DIGEST_LENGTH * 2))
-    for i in 0..<digestLength {
-      output.appendFormat("%02x", md5Buffer[i])
-    }
-
-    md5Buffer.deallocate()
-    return NSString(format: output)
-  }
-}
-
 extension Data {
-  var md5: String {
-    get {
-      return (self as NSData).md5() as String
-    }
-  }
+  var md5: String { Insecure.MD5.hash(data: self).map { String(format: "%02x", $0) }.joined() }
 
   var chksum64: UInt64 {
     return withUnsafeBytes {
@@ -556,11 +540,7 @@ extension NSImage {
 
 extension NSVisualEffectView {
   func roundCorners(withRadius cornerRadius: CGFloat) {
-    if #available(macOS 10.14, *) {
-      maskImage = .maskImage(cornerRadius: cornerRadius)
-    } else {
-      layer?.cornerRadius = cornerRadius
-    }
+    maskImage = .maskImage(cornerRadius: cornerRadius)
   }
 }
 
@@ -598,7 +578,6 @@ extension NSUserInterfaceItemIdentifier {
 }
 
 extension NSAppearance {
-  @available(macOS 10.14, *)
   convenience init?(iinaTheme theme: Preference.Theme) {
     switch theme {
     case .dark:
@@ -611,11 +590,7 @@ extension NSAppearance {
   }
 
   var isDark: Bool {
-    if #available(macOS 10.14, *) {
-      return name == .darkAqua || name == .vibrantDark || name == .accessibilityHighContrastDarkAqua || name == .accessibilityHighContrastVibrantDark
-    } else {
-      return name == .vibrantDark
-    }
+    return name == .darkAqua || name == .vibrantDark || name == .accessibilityHighContrastDarkAqua || name == .accessibilityHighContrastVibrantDark
   }
 }
 
@@ -636,19 +611,15 @@ extension NSScreen {
   /// area in case additional problems are encountered in the future.
   /// - parameter label: Label to include in the log message.
   /// - parameter screen: The `NSScreen` object to log.
-  static func log(_ label: String, _ screen: NSScreen?) {
+  static func log(_ label: String, _ screen: NSScreen?, subsystem: Logger.Subsystem = .general) {
     guard let screen = screen else {
-      Logger.log("\(label): nil")
+      Logger.log("\(label): nil", level: .warning, subsystem: subsystem)
       return
     }
     // Unfortunately localizedName is not available until macOS Catalina.
-    if #available(macOS 10.15, *) {
-      let maxPossibleEDR = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
-      let canEnableEDR = maxPossibleEDR > 1.0
-      Logger.log("\(label): \"\(screen.localizedName)\" visible frame \(screen.visibleFrame) EDR: {supports=\(canEnableEDR) maxPotential=\(maxPossibleEDR) maxCurrent=\(screen.maximumExtendedDynamicRangeColorComponentValue)}")
-    } else {
-      Logger.log("\(label): visible frame \(screen.visibleFrame)")
-    }
+    let maxPossibleEDR = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
+    let canEnableEDR = maxPossibleEDR > 1.0
+    Logger.log("\(label): \"\(screen.localizedName)\" visible frame \(screen.visibleFrame) EDR: {supports=\(canEnableEDR) maxPotential=\(maxPossibleEDR) maxCurrent=\(screen.maximumExtendedDynamicRangeColorComponentValue)}", subsystem: subsystem)
   }
 }
 
@@ -686,15 +657,8 @@ extension Process {
 
     let (stdout, stderr) = (Pipe(), Pipe())
     let process = Process()
-    if #available(macOS 10.13, *) {
-      process.executableURL = URL(fileURLWithPath: cmd[0])
-      process.currentDirectoryURL = currentDir
-    } else {
-      process.launchPath = cmd[0]
-      if let path = currentDir?.path {
-        process.currentDirectoryPath = path
-      }
-    }
+    process.executableURL = URL(fileURLWithPath: cmd[0])
+    process.currentDirectoryURL = currentDir
     process.arguments = [String](cmd.dropFirst())
     process.standardOutput = stdout
     process.standardError = stderr

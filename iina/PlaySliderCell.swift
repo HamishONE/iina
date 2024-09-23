@@ -8,19 +8,6 @@
 
 import Cocoa
 
-// These colors are for 10.13- only
-@available(macOS, obsoleted: 10.14)
-fileprivate extension NSColor {
-  static let darkKnobColor = NSColor(calibratedRed: 1, green: 1, blue: 1, alpha: 0.5)
-  static let lightKnobColor = NSColor(calibratedRed: 0.3, green: 0.3, blue: 0.3, alpha: 1)
-  static let darkBarColorLeft = NSColor(calibratedWhite: 1, alpha: 0.3)
-  static let darkBarColorRight = NSColor(calibratedWhite: 1, alpha: 0.1)
-  static let lightBarColorLeft = NSColor(calibratedRed: 0.239, green: 0.569, blue: 0.969, alpha: 1)
-  static let lightBarColorRight = NSColor(calibratedWhite: 0.5, alpha: 0.5)
-  static let lightChapterStrokeColor = NSColor(calibratedWhite: 0.4, alpha: 1)
-  static let darkChapterStrokeColor = NSColor(calibratedWhite: 0.2, alpha: 1)
-}
-
 class PlaySliderCell: NSSliderCell {
   unowned var _playerCore: PlayerCore!
   var playerCore: PlayerCore {
@@ -41,53 +28,11 @@ class PlaySliderCell: NSSliderCell {
   let knobRadius: CGFloat = 1
   let barRadius: CGFloat = 1.5
 
-  var isInDarkTheme: Bool = true {
-    didSet {
-      if #available(macOS 10.14, *) {} else {
-        self.knobColor = isInDarkTheme ? .darkKnobColor : .lightKnobColor
-        self.knobActiveColor = isInDarkTheme ? .darkKnobColor : .lightKnobColor
-        self.barColorLeft = isInDarkTheme ? .darkBarColorLeft : .lightBarColorLeft
-        self.barColorRight = isInDarkTheme ? .darkBarColorRight : .lightBarColorRight
-        self.chapterStrokeColor = isInDarkTheme ? .darkChapterStrokeColor : .lightChapterStrokeColor
-      }
-    }
-  }
-
-  private var knobColor: NSColor = {
-    if #available(macOS 10.14, *) {
-      return NSColor(named: .mainSliderKnob)!
-    } else {
-      return .darkKnobColor
-    }
-  }()
-  private var knobActiveColor: NSColor = {
-    if #available(macOS 10.14, *) {
-      return NSColor(named: .mainSliderKnobActive)!
-    } else {
-      return .darkKnobColor
-    }
-  }()
-  private var barColorLeft: NSColor = {
-    if #available(macOS 10.14, *) {
-      return NSColor(named: .mainSliderBarLeft)!
-    } else {
-      return .darkBarColorLeft
-    }
-  }()
-  private var barColorRight: NSColor = {
-    if #available(macOS 10.14, *) {
-      return NSColor(named: .mainSliderBarRight)!
-    } else {
-      return .darkBarColorRight
-    }
-  }()
-  private var chapterStrokeColor: NSColor = {
-    if #available(macOS 10.14, *) {
-      return NSColor(named: .mainSliderBarChapterStroke)!
-    } else {
-      return .darkChapterStrokeColor
-    }
-  }()
+  private var knobColor = NSColor(named: .mainSliderKnob)!
+  private var knobActiveColor = NSColor(named: .mainSliderKnobActive)!
+  private var barColorLeft = NSColor(named: .mainSliderBarLeft)!
+  private var barColorRight = NSColor(named: .mainSliderBarRight)!
+  private var chapterStrokeColor = NSColor(named: .mainSliderBarChapterStroke)!
 
   var drawChapters = Preference.bool(for: .showChapterPos)
 
@@ -108,7 +53,7 @@ class PlaySliderCell: NSSliderCell {
                           knobHeight)
     let isLightTheme = !controlView!.window!.effectiveAppearance.isDark
 
-    if #available(macOS 10.14, *), isLightTheme {
+    if isLightTheme {
       NSGraphicsContext.saveGraphicsState()
       let shadow = NSShadow()
       shadow.shadowBlurRadius = 1
@@ -121,7 +66,7 @@ class PlaySliderCell: NSSliderCell {
     (isHighlighted ? knobActiveColor : knobColor).setFill()
     path.fill()
 
-    if #available(macOS 10.14, *), isLightTheme {
+    if isLightTheme {
       path.lineWidth = 0.4
       NSColor.controlShadowColor.setStroke()
       path.stroke()
@@ -181,9 +126,7 @@ class PlaySliderCell: NSSliderCell {
     let pathLeftRect : NSRect = NSMakeRect(barRect.origin.x, barRect.origin.y, progress, barRect.height)
     NSBezierPath(rect: pathLeftRect).addClip();
 
-    if #available(macOS 10.14, *), !controlView!.window!.effectiveAppearance.isDark {
-      // Draw knob shadow in 10.14+ light theme
-    } else {
+    if controlView!.window!.effectiveAppearance.isDark {
       // Clip 1px around the knob
       path.append(NSBezierPath(rect: NSRect(x: knobPos - 1, y: barRect.origin.y, width: knobWidth + 2, height: barRect.height)).reversed);
     }
@@ -223,7 +166,7 @@ class PlaySliderCell: NSSliderCell {
   // MARK:- Tracking the Mouse
 
   override func startTracking(at startPoint: NSPoint, in controlView: NSView) -> Bool {
-    isPausedBeforeSeeking = playerCore.info.isPaused
+    isPausedBeforeSeeking = playerCore.info.state == .paused
     let result = super.startTracking(at: startPoint, in: controlView)
     if result {
       playerCore.pause()

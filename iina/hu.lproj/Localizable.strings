@@ -16,6 +16,9 @@
 "general.username" = "Felhasználónév";
 "general.password" = "Jelszó";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Kiemelések";
 "guide.basic_settings" = "Alapvető beállítások";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "A Nightly verzió nem ajánlott mindennapi használatra. Jelenleg a nightly verzió nem támogatja az automatikus frissítést.. Töltsd le a friss verziót a <a href=\"https://nightly.iina.io\">nightly oldalunkról</a>.";
 "initial.debug.desc" = "A hibakeresési verzió általában nincs teljesítményre optimalizálva, ezért nem ajánlott napi használatra. A hibakeresési verziók nem támogatják az automatikus frissítést.";
 "initial.bug_report" = "Jelentés a <a href=\"https://github.com/iina/iina/issues\">GitHub-bugok</a> felületen.";
+
+// Inspector Window
+"inspector.error" = "Hiba";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Bufferelés…%d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Hardveres dekódolás";
 "quicksetting.deinterlace" = "Váltottsoros képszűrő";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Elrejtés";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Szünet";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Felirat késleltetés: %.2fmp-vel később";
 "osd.sub_delay.earlier" = "Felirat késleltetés: %.2fmp-vel hamarabb";
 "osd.subtitle_pos" = "Felirat pozíciója: %.1f";
+"osd.sub_hidden" = "Feliratok elrejtve";
+"osd.sub_visible" = "Feliratok megjelenítve";
+"osd.sub_second_delay.nodelay" = "Másodlagos felirat késleltetés: Nincs késleltetés";
+"osd.sub_second_delay.later" = "Másodlagos felirat késleltetés: %.2fmp-vel később";
+"osd.sub_second_delay.earlier" = "Másodlagos felirat késleltetés: %.2fmp-vel előbb";
+"osd.sub_second_hidden" = "Másodlagos feliratok elrejtve";
+"osd.sub_second_pos" = "Másodlagos felirat pozíció: %.1f";
+"osd.sub_second_visible" = "Másodlagos feliratok megjelenítve";
 "osd.mute" = "Némítás";
 "osd.unmute" = "Némítás feloldása";
 "osd.screenshot" = "Képernyőkép rögzítve";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Online feliratok keresése…";
 "osd.find_online_sub.source" = "forrás";
 "osd.sub_not_found" = "Nem található felirat";
-"osd.sub_found" = "%d felirat található. Letöltés…";
+"osd.sub_found" = "%d felirat található.";
+"osd.sub_downloading" = "%d felirat letöltése";
 "osd.sub_downloaded" = "Felirat letöltve";
 "osd.sub_saved" = "Felirat mentve";
 "osd.network_error" = "Hálózati hiba";
 "osd.file_error" = "Hiba a fájl olvasásakor";
 "osd.cannot_login" = "Sikertelen belépés";
 "osd.canceled" = "Megszakítva";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "Nem tud csatlakozni";
+"osd.timed_out" = "Időtúllépés";
 "osd.filter_added" = "Szűrő hozzáadása: %@";
 "osd.filter_removed" = "Szűrő eltávolítása";
-"osd.file_loop" = "Fájl ismétlése: %@";
-"osd.playlist_loop" = "Lejátszási lista ismétlése: %@";
+"osd.file_loop" = "Egyetlen fájl ismétlése";
+"osd.playlist_loop" = "Ismétlődő lejátszási lista";
+"osd.no_loop" = "Ismétlés kikapcsolása";
 
 "preference.title" = "Beállítások";
 "preference.general" = "Általános";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Haladó beállítások engedélyezése";
 
+"preference.sub_override_level.force" = "kényszerített";
+"preference.sub_override_level.scale" = "méretezés";
+"preference.sub_override_level.strip" = "csík";
+"preference.sub_override_level.yes" = "igen";
+
 "menu.volume" = "Hangerő: %d";
 "menu.volume_muted" = "Hangerő: %d (Némítva)";
 "menu.audio_delay" = "Hangkésleltetés: %.2fmp-vel később";
 "menu.sub_delay" = "Felirat késleltetés: %.2fmp-vel később";
+"menu.sub_hide" = "Feliratok elrejtése";
+"menu.sub_show" = "Feliratok megjelenítése";
+"menu.sub_second_hide" = "Másodlagos feliratok elrejtése";
+"menu.sub_second_show" = "Másodlagos feliratok megjelenítése";
 "menu.fullscreen" = "Váltás teljes képernyőre";
 "menu.exit_fullscreen" = "Kilépés a teljes képernyős módból";
 "menu.pip" = "Kép a képben";
 "menu.exit_pip" = "Kilépés kép a képben módból";
+"menu.mini_player" = "Belépés \"zene\" módba";
+"menu.exit_mini_player" = "Kilépés zene módból";
 "menu.pause" = "Pause (Megállít)";
 "menu.resume" = "Folytatás";
 "menu.speed" = "Sebesség: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Felirat késleltetés + %.1f másodperccel";
 "menu.sub_delay_down" = "Felirat késleltetés - %.1f másodperccel";
 
-"menu.crop_custom" = "Egyéni...";
+"menu.crop_custom" = "Egyéni…";
 "menu.find_online_sub" = "Online feliratok keresése innen: %@";
 
+"track.audio" = "Hang";
 "track.none" = "<None>";
+"track.sub" = "Felirat";
+"track.video" = "Videó";
 
 "subtrack.no_loaded" = "Nincs felirat betöltve";
 "subtrack.no_external" = "Nem található külsõ forrásból felirat";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Kritikus hiba: %@\nAz alkalmazás bezárul.";
 "alert.mpv_error" = "Hiba történt %@ (%@) az opció %@ beállítása közben.";
-"alert.sleep" = "A kijelző alvó állapotba lépését nem lehet megakadályozni! (0x%0X8)";
 
 "alert.unsupported_audio" = "Nem támogatott külsõ hang fájl.";
 "alert.unsupported_sub" = "Nem támogatott külsõ felirat.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Konfiguráció duplikálása";
 "alert.config.duplicate.message" = "Kérlek adj nevet az új duplikált konfigurációnak.";
 "alert.config.empty_name" = "A név mező nem lehet üres.";
-"alert.config.name_existing" = "A név már létezik.";
+"alert.config.name_existing" = "Egy konfiguráció ezzel a névvel már létezik.";
 "alert.config.file_existing.title" = "A fájl már létezik";
-"alert.config.file_existing.message" = "Ennek nem szabadna megtörténnie. Kattints az OK gombra a felülíráshoz, a Mégse gombra a fájl felfedéséhez a Finderben.";
+"alert.config.file_existing.message" = "Egy azonos fájlnevű konfigurációs fájl már létezik. Válassza az OK lehetőséget a fájl megjelenítéséhez a Finderben.";
 "alert.config.cannot_create" = "Konfigurációs fájl nem hozható létre!\n%@";
 "alert.config.cannot_write" = "Konfigurációs fájl nem irható!";
+"alert.config.rename.title" = "Bemeneti konfiguráció átnevezése";
+"alert.config.rename.message" = "Adja meg a konfiguráció új nevét.";
 
 "alert.filter.incorrect" = "Hiba történt a szűrők beállításakor. Kérjük, ellenőrizd le a paraméter formátumát.";
 "alert.add_filter.title" = "Új filter";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Váltás teljes képernyõre";
 "osc_toolbar.music_mode" = "Belépés \"zene\" módba";
 "osc_toolbar.sub_track" = "Válassz felirat sávot";
+"osc_toolbar.screenshot" = "Képernyőmentés készítése";
 
 "mini_player.album_art" = "Album borító váltás";
 "mini_player.loop" = "Ismétlés";

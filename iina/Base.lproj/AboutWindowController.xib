@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23086.1" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23086.1"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -13,7 +13,6 @@
                 <outlet property="buildView" destination="10Q-XR-xzb" id="Xbk-OU-3UO"/>
                 <outlet property="contributorsButton" destination="ZI5-MK-cHL" id="ITp-Pd-sWy"/>
                 <outlet property="contributorsCollectionView" destination="KDi-R3-lE7" id="WHw-ob-ruR"/>
-                <outlet property="contributorsFooterImage" destination="bUk-MP-jkv" id="9oa-Gt-Sym"/>
                 <outlet property="contributorsFooterView" destination="nmC-ZN-RcQ" id="d3K-PG-wt2"/>
                 <outlet property="creditsButton" destination="XuI-3z-cJF" id="IQr-94-1fD"/>
                 <outlet property="creditsTextView" destination="Vex-sA-zx3" id="xid-ke-4Xp"/>
@@ -35,7 +34,7 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" fullSizeContentView="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="196" y="240" width="640" height="400"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="3840" height="1575"/>
             <view key="contentView" wantsLayer="YES" id="se5-gp-TjO">
                 <rect key="frame" x="0.0" y="0.0" width="640" height="400"/>
                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -104,7 +103,7 @@
                                         <customView horizontalCompressionResistancePriority="1000" verticalCompressionResistancePriority="1000" translatesAutoresizingMaskIntoConstraints="NO" id="10Q-XR-xzb" userLabel="Build View">
                                             <rect key="frame" x="20" y="150" width="180" height="48"/>
                                             <subviews>
-                                                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" textCompletion="NO" id="O3G-Ax-VRU" userLabel="Date">
+                                                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" mirrorLayoutDirectionWhenInternationalizing="never" textCompletion="NO" id="O3G-Ax-VRU" userLabel="Date">
                                                     <rect key="frame" x="0.0" y="37" width="180" height="11"/>
                                                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                     <textFieldCell key="cell" controlSize="mini" scrollable="YES" lineBreakMode="clipping" selectable="YES" refusesFirstResponder="YES" allowsUndo="NO" sendsActionOnEndEditing="YES" alignment="center" title="Date" usesSingleLineMode="YES" id="hp8-K0-WQf">
@@ -114,7 +113,7 @@
                                                     </textFieldCell>
                                                 </textField>
                                                 <button hidden="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="4og-gN-tB4">
-                                                    <rect key="frame" x="72" y="21" width="36" height="12"/>
+                                                    <rect key="frame" x="73" y="22" width="35" height="11"/>
                                                     <buttonCell key="cell" type="roundRect" title="Branch" bezelStyle="roundedRect" alignment="center" controlSize="mini" state="on" imageScaling="proportionallyDown" inset="2" id="oha-Ne-oEr">
                                                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                         <font key="font" metaFont="miniSystem"/>
@@ -130,18 +129,18 @@
                                         </customView>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tKq-yl-nhe" customClass="AboutWindowButton" customModule="IINA" customModuleProvider="target">
                                             <rect key="frame" x="40" y="118" width="140" height="24"/>
-                                            <constraints>
-                                                <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="24" id="Tpv-WH-0TZ"/>
-                                            </constraints>
                                             <buttonCell key="cell" type="square" title="License" bezelStyle="shadowlessSquare" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="jEf-xN-6xb">
                                                 <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
                                                 <font key="font" metaFont="system"/>
                                             </buttonCell>
+                                            <constraints>
+                                                <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="24" id="Tpv-WH-0TZ"/>
+                                            </constraints>
                                             <connections>
                                                 <action selector="sectionBtnAction:" target="-2" id="yrQ-4k-u0g"/>
                                             </connections>
                                         </button>
-                                        <button verticalHuggingPriority="750" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="ZI5-MK-cHL" customClass="AboutWindowButton" customModule="IINA" customModuleProvider="target">
+                                        <button tag="1" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ZI5-MK-cHL" customClass="AboutWindowButton" customModule="IINA" customModuleProvider="target">
                                             <rect key="frame" x="40" y="84" width="140" height="24"/>
                                             <buttonCell key="cell" type="square" title="Contributors" bezelStyle="shadowlessSquare" alignment="center" lineBreakMode="truncatingTail" imageScaling="proportionallyDown" inset="2" id="XWg-VQ-fRV">
                                                 <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
@@ -151,7 +150,7 @@
                                                 <action selector="sectionBtnAction:" target="-2" id="gh3-w5-Jno"/>
                                             </connections>
                                         </button>
-                                        <button verticalHuggingPriority="750" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="XuI-3z-cJF" customClass="AboutWindowButton" customModule="IINA" customModuleProvider="target">
+                                        <button tag="2" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="XuI-3z-cJF" customClass="AboutWindowButton" customModule="IINA" customModuleProvider="target">
                                             <rect key="frame" x="40" y="50" width="140" height="24"/>
                                             <buttonCell key="cell" type="square" title="Credits" bezelStyle="shadowlessSquare" alignment="center" imageScaling="proportionallyDown" inset="2" id="zCH-uO-acx">
                                                 <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
@@ -269,10 +268,6 @@
                                                             <autoresizingMask key="autoresizingMask"/>
                                                         </scroller>
                                                     </scrollView>
-                                                    <imageView hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="bUk-MP-jkv">
-                                                        <rect key="frame" x="0.0" y="62" width="400" height="60"/>
-                                                        <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="Q2i-kp-Z0G"/>
-                                                    </imageView>
                                                     <visualEffectView appearanceType="inheritedVibrantLight" blendingMode="withinWindow" material="underWindowBackground" state="followsWindowActiveState" translatesAutoresizingMaskIntoConstraints="NO" id="nmC-ZN-RcQ">
                                                         <rect key="frame" x="0.0" y="62" width="400" height="60"/>
                                                         <constraints>
@@ -280,8 +275,8 @@
                                                         </constraints>
                                                     </visualEffectView>
                                                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="0PM-oG-4Qs">
-                                                        <rect key="frame" x="140" y="70" width="121" height="18"/>
-                                                        <buttonCell key="cell" type="inline" title="iina/contributors" bezelStyle="inline" image="NSFollowLinkFreestandingTemplate" imagePosition="left" alignment="center" borderStyle="border" inset="2" id="U9l-uR-i7g">
+                                                        <rect key="frame" x="141" y="70" width="118" height="18"/>
+                                                        <buttonCell key="cell" type="inline" title="iina/contributors" bezelStyle="inline" image="forward" imagePosition="left" alignment="center" borderStyle="border" inset="2" id="U9l-uR-i7g">
                                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                             <font key="font" metaFont="smallSystemBold"/>
                                                         </buttonCell>
@@ -290,8 +285,8 @@
                                                         </connections>
                                                     </button>
                                                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="trK-iz-kG7">
-                                                        <rect key="frame" x="136" y="0.0" width="128" height="18"/>
-                                                        <buttonCell key="cell" type="inline" title="crowdin/members" bezelStyle="inline" image="NSFollowLinkFreestandingTemplate" imagePosition="left" alignment="center" borderStyle="border" inset="2" id="7k7-70-Kku">
+                                                        <rect key="frame" x="164" y="0.0" width="72" height="18"/>
+                                                        <buttonCell key="cell" type="inline" title="Crowdin" bezelStyle="inline" image="forward" imagePosition="left" alignment="center" borderStyle="border" inset="2" id="7k7-70-Kku">
                                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                             <font key="font" metaFont="smallSystemBold"/>
                                                         </buttonCell>
@@ -310,9 +305,7 @@
                                                 </subviews>
                                                 <constraints>
                                                     <constraint firstItem="iaQ-kz-jCh" firstAttribute="leading" secondItem="Rtt-1M-7Kd" secondAttribute="leading" constant="4" id="365-5O-DGk"/>
-                                                    <constraint firstItem="bUk-MP-jkv" firstAttribute="bottom" secondItem="nmC-ZN-RcQ" secondAttribute="bottom" id="Ava-A0-JqP"/>
                                                     <constraint firstAttribute="trailing" secondItem="iaQ-kz-jCh" secondAttribute="trailing" constant="4" id="Foe-AW-ovM"/>
-                                                    <constraint firstItem="bUk-MP-jkv" firstAttribute="leading" secondItem="nmC-ZN-RcQ" secondAttribute="leading" id="GG2-tx-nu0"/>
                                                     <constraint firstItem="iaQ-kz-jCh" firstAttribute="top" secondItem="Rtt-1M-7Kd" secondAttribute="top" id="Tqt-1D-AOb"/>
                                                     <constraint firstAttribute="trailing" secondItem="nmC-ZN-RcQ" secondAttribute="trailing" id="ceK-j8-ptp"/>
                                                     <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="lR7-ma-7xF" secondAttribute="trailing" id="dpc-cX-9I8"/>
@@ -320,12 +313,10 @@
                                                     <constraint firstItem="lR7-ma-7xF" firstAttribute="top" secondItem="iaQ-kz-jCh" secondAttribute="bottom" constant="8" symbolic="YES" id="gUx-79-9Cr"/>
                                                     <constraint firstItem="0PM-oG-4Qs" firstAttribute="centerX" secondItem="nmC-ZN-RcQ" secondAttribute="centerX" id="h29-pz-GL1"/>
                                                     <constraint firstItem="nmC-ZN-RcQ" firstAttribute="bottom" secondItem="0PM-oG-4Qs" secondAttribute="bottom" constant="8" id="hVS-pi-lV1"/>
-                                                    <constraint firstItem="bUk-MP-jkv" firstAttribute="top" secondItem="nmC-ZN-RcQ" secondAttribute="top" id="iZ0-M4-muf"/>
                                                     <constraint firstItem="trK-iz-kG7" firstAttribute="top" secondItem="lR7-ma-7xF" secondAttribute="bottom" constant="20" id="jXS-j3-JAr"/>
                                                     <constraint firstAttribute="bottom" secondItem="trK-iz-kG7" secondAttribute="bottom" id="kwm-uu-JkJ"/>
                                                     <constraint firstItem="lR7-ma-7xF" firstAttribute="leading" secondItem="Rtt-1M-7Kd" secondAttribute="leading" id="q6A-Sn-AXA"/>
                                                     <constraint firstItem="trK-iz-kG7" firstAttribute="centerX" secondItem="Rtt-1M-7Kd" secondAttribute="centerX" id="qo9-gM-aL0"/>
-                                                    <constraint firstItem="bUk-MP-jkv" firstAttribute="trailing" secondItem="nmC-ZN-RcQ" secondAttribute="trailing" id="vLM-Uv-FeK"/>
                                                     <constraint firstItem="nmC-ZN-RcQ" firstAttribute="leading" secondItem="Rtt-1M-7Kd" secondAttribute="leading" id="xo5-ma-AoO"/>
                                                 </constraints>
                                             </view>
@@ -399,6 +390,6 @@
         </window>
     </objects>
     <resources>
-        <image name="NSFollowLinkFreestandingTemplate" width="20" height="20"/>
+        <image name="forward" width="11" height="11"/>
     </resources>
 </document>

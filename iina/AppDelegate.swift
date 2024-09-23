@@ -23,6 +23,9 @@ fileprivate let AlternativeMenuItemTag = 1
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
+  /// The `AppDelegate` singleton object.
+  static var shared: AppDelegate { NSApp.delegate as! AppDelegate }
+
   /** Whether performed some basic initialization, like bind menu items. */
   var isReady = false
   /**
@@ -63,14 +66,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   lazy var logWindow: LogWindowController = LogWindowController()
 
   lazy var vfWindow: FilterWindowController = {
-    let w = FilterWindowController()
-    w.filterType = MPVProperty.vf
+    let w = FilterWindowController(filterType: MPVProperty.vf, autosaveName: Constants.WindowAutosaveName.videoFilters)
     return w
   }()
 
   lazy var afWindow: FilterWindowController = {
-    let w = FilterWindowController()
-    w.filterType = MPVProperty.af
+    let w = FilterWindowController(filterType: MPVProperty.af, autosaveName: Constants.WindowAutosaveName.audioFilters)
     return w
   }()
 
@@ -135,10 +136,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   /// - The git branch
   /// - The git commit
   private func logBuildDetails() {
+    guard let date = InfoDictionary.shared.buildDate,
+          let sdk = InfoDictionary.shared.buildSDK,
+          let xcode = InfoDictionary.shared.buildXcode else { return }
+    let toString = DateFormatter()
+    toString.dateStyle = .medium
+    toString.timeStyle = .medium
+    // Always use the en_US locale for dates in the log file.
+    toString.locale = Locale(identifier: "en_US")
+    Logger.log("Built using Xcode \(xcode) and macOS SDK \(sdk) on \(toString.string(from: date))")
     guard let branch = InfoDictionary.shared.buildBranch,
-          let commit = InfoDictionary.shared.buildCommit,
-          let date = InfoDictionary.shared.buildDate else { return }
-    Logger.log("Built \(date) from branch \(branch), commit \(commit)")
+          let commit = InfoDictionary.shared.buildCommit else { return }
+    Logger.log("From branch \(branch), commit \(commit)")
   }
 
   /// Log details about the Mac IINA is running on.
@@ -204,8 +213,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     Logger.log("App will launch")
 
+    // Start asynchronously gathering and caching information about the hardware decoding
+    // capabilities of this Mac.
+    HardwareDecodeCapabilities.shared.checkCapabilities()
+
+    // Workaround macOS Sonoma clearing the recent documents list when the IINA code is not signed
+    // with IINA's certificate as is the case for developer and nightly builds.
+    restoreRecentDocuments()
+
     // register for url event
     NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(self.handleURLEvent(event:withReplyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+
+    // Check for legacy pref entries and migrate them to their modern equivalents
+    LegacyMigration.shared.migrateLegacyPreferences()
 
     // guide window
     if FirstRunManager.isFirstRun(for: .init("firstLaunchAfter\(version)")) {
@@ -223,7 +243,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     var iinaArgFilenames: [String] = []
     var dropNextArg = false
 
-    Logger.log("Got arguments \(arguments)")
+    Logger.log("Command-line args: \(arguments)")
     for arg in arguments {
       if dropNextArg {
         dropNextArg = false
@@ -247,9 +267,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       }
     }
 
-    Logger.log("IINA arguments: \(iinaArgs)")
-    Logger.log("Filenames from arguments: \(iinaArgFilenames)")
     commandLineStatus.parseArguments(iinaArgs)
+    Logger.log("Filenames from args: \(iinaArgFilenames)")
+    Logger.log("Derived mpv properties from args: \(commandLineStatus.mpvArguments)")
 
     print("IINA \(version) Build \(build)")
 
@@ -286,21 +306,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     NSColorPanel.shared.showsAlpha = true
 
     // other initializations at App level
-    if #available(macOS 10.12.2, *) {
-      NSApp.isAutomaticCustomizeTouchBarMenuItemEnabled = false
-      NSWindow.allowsAutomaticWindowTabbing = false
-    }
+    NSApp.isAutomaticCustomizeTouchBarMenuItemEnabled = false
+    NSWindow.allowsAutomaticWindowTabbing = false
 
     JavascriptPlugin.loadGlobalInstances()
-    let _ = PlayerCore.first
-    Logger.log("Using \(PlayerCore.active.mpv.mpvVersion!)")
 
-    if #available(macOS 10.13, *) {
-      if RemoteCommandController.useSystemMediaControl {
-        Logger.log("Setting up MediaPlayer integration")
-        RemoteCommandController.setup()
-        NowPlayingInfoManager.updateInfo(state: .unknown)
-      }
+    let mpv = PlayerCore.active.mpv!
+    Logger.log("Using \(mpv.mpvVersion) and libass \(mpv.libassVersion)")
+    Logger.log("Configuration when building mpv: \(mpv.getString(MPVProperty.mpvConfiguration)!)", level: .verbose)
+
+    if RemoteCommandController.useSystemMediaControl {
+      Logger.log("Setting up MediaPlayer integration")
+      RemoteCommandController.setup()
+      NowPlayingInfoManager.updateInfo(state: .unknown)
     }
 
     // if have pending open request
@@ -313,9 +331,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       Timer.scheduledTimer(timeInterval: TimeInterval(0.1), target: self, selector: #selector(self.checkForShowingInitialWindow), userInfo: nil, repeats: false)
     } else {
       var lastPlayerCore: PlayerCore? = nil
-      let getNewPlayerCore = { () -> PlayerCore in
+      let getNewPlayerCore = { [self] () -> PlayerCore in
         let pc = PlayerCore.newPlayerCore
-        self.commandLineStatus.assignMPVArguments(to: pc)
+        commandLineStatus.applyMPVArguments(to: pc)
         lastPlayerCore = pc
         return pc
       }
@@ -349,7 +367,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             exit(EX_USAGE)
           }
           pc.switchToMiniPlayer()
-        } else if #available(macOS 10.12, *), commandLineStatus.enterPIP {
+        } else if commandLineStatus.enterPIP {
           pc.mainWindow.enterPIP()
         }
       }
@@ -359,7 +377,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     NSApplication.shared.servicesProvider = self
 
-    (NSApp.delegate as? AppDelegate)?.menuController?.updatePluginMenu()
+    AppDelegate.shared.menuController?.updatePluginMenu()
   }
 
   /** Show welcome window if `application(_:openFile:)` wasn't called, i.e. launched normally. */
@@ -399,39 +417,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     return Preference.bool(for: .quitWhenNoOpenedWindow)
   }
 
-  @objc
-  func shutdownTimedout() {
-    timedOut = true
-    if !allPlayersHaveShutdown {
-      Logger.log("Timed out waiting for players to stop and shutdown", level: .warning)
-      // For debugging list players that have not terminated.
-      for player in PlayerCore.playerCores {
-        let label = player.label ?? "unlabeled"
-        if !player.isStopped {
-          Logger.log("Player \(label) failed to stop", level: .warning)
-        } else if !player.isShutdown {
-          Logger.log("Player \(label) failed to shutdown", level: .warning)
-        }
-      }
-      // For debugging purposes we do not remove observers in case players stop or shutdown after
-      // the timeout has fired as knowing that occurred maybe useful for debugging why the
-      // termination sequence failed to complete on time.
-      Logger.log("Not waiting for players to shutdown; proceeding with application termination",
-                 level: .warning)
-    }
-    if OnlineSubtitle.loggedIn {
-      // The request to log out of the online subtitles provider has not completed. This should not
-      // occur as the logout request uses a timeout that is shorter than the termination timeout to
-      // avoid this occurring. Therefore if this message is logged something has gone wrong with the
-      // shutdown code.
-      Logger.log("Timed out waiting for log out of online subtitles provider to complete",
-                 level: .warning)
-    }
-    Logger.log("Proceeding with application termination due to time out", level: .warning)
-    // Tell Cocoa to proceed with termination.
-    NSApp.reply(toApplicationShouldTerminate: true)
-  }
-
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     Logger.log("App should terminate")
     isTerminating = true
@@ -447,11 +432,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     removeAllMenuItems(dockMenu)
     // If supported and enabled disable all remote media commands. This also removes IINA from
     // the Now Playing widget.
-    if #available(macOS 10.13, *) {
-      if RemoteCommandController.useSystemMediaControl {
-        Logger.log("Disabling remote commands")
-        RemoteCommandController.disableAllCommands()
-      }
+    if RemoteCommandController.useSystemMediaControl {
+      Logger.log("Disabling remote commands")
+      RemoteCommandController.disableAllCommands()
     }
 
     // The first priority was to shutdown any new input from the user. The second priority is to
@@ -479,7 +462,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     // termination is initiated.
     allPlayersHaveShutdown = true
     for player in PlayerCore.playerCores {
-      if !player.isShutdown {
+      if player.info.state != .shutDown {
         allPlayersHaveShutdown = false
         break
       }
@@ -513,17 +496,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     // arbitrary timeout that forces termination to complete. The expectation is that this timeout
     // is never triggered. If a timeout warning is logged during termination then that needs to be
     // investigated.
-    var timer: Timer
-    if #available(macOS 10.12, *) {
-      timer = Timer(timeInterval: terminationTimeout, repeats: false) { _ in
-        // Once macOS 10.11 is no longer supported the contents of the method can be inlined in this
-        // closure.
-        self.shutdownTimedout()
+    let timer = Timer(timeInterval: terminationTimeout, repeats: false) { [unowned self] _ in
+      timedOut = true
+      if !allPlayersHaveShutdown {
+        Logger.log("Timed out waiting for players to stop and shutdown", level: .warning)
+        // For debugging list players that have not terminated.
+        for player in PlayerCore.playerCores {
+          let label = player.label ?? "unlabeled"
+          if player.info.state == .stopping {
+            Logger.log("Player \(label) failed to stop", level: .warning)
+          } else if player.info.state == .shuttingDown {
+            Logger.log("Player \(label) failed to shutdown", level: .warning)
+          }
+        }
+        // For debugging purposes we do not remove observers in case players stop or shutdown after
+        // the timeout has fired as knowing that occurred maybe useful for debugging why the
+        // termination sequence failed to complete on time.
+        Logger.log("Not waiting for players to shutdown; proceeding with application termination",
+                   level: .warning)
       }
-    } else {
-      timer = Timer(timeInterval: terminationTimeout, target: self,
-                    selector: #selector(self.shutdownTimedout), userInfo: nil, repeats: false)
+      if OnlineSubtitle.loggedIn {
+        // The request to log out of the online subtitles provider has not completed. This should not
+        // occur as the logout request uses a timeout that is shorter than the termination timeout to
+        // avoid this occurring. Therefore if this message is logged something has gone wrong with the
+        // shutdown code.
+        Logger.log("Timed out waiting for log out of online subtitles provider to complete",
+                   level: .warning)
+      }
+      Logger.log("Proceeding with application termination due to time out", level: .warning)
+      // Tell Cocoa to proceed with termination.
+      NSApp.reply(toApplicationShouldTerminate: true)
     }
+
     RunLoop.main.add(timer, forMode: .common)
 
     // Establish an observer for a player core stopping.
@@ -563,7 +567,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       if !allPlayersHaveShutdown {
         // If any player has not shutdown then continue waiting.
         for player in PlayerCore.playerCores {
-          guard player.isShutdown else { return }
+          guard player.info.state == .shutDown else { return }
         }
         allPlayersHaveShutdown = true
         // All players have shutdown.
@@ -624,7 +628,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     // Instruct any players that are already stopped to start shutting down.
     for player in PlayerCore.playerCores {
-      if player.isStopped && !player.isShutdown {
+      if player.info.state == .idle {
         player.shutdown()
       }
     }
@@ -687,6 +691,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       Utility.showAlert("nothing_to_open")
     }
   }
+
+  /// Method to opt-in to secure restorable state.
+  ///
+  /// From the `Restorable State` section of the [AppKit Release Notes for macOS 14](https://developer.apple.com/documentation/macos-release-notes/appkit-release-notes-for-macos-14#Restorable-State):
+  ///
+  /// Secure coding is automatically enabled for restorable state for applications linked on the macOS 14.0 SDK. Applications that
+  /// target prior versions of macOS should implement `NSApplicationDelegate.applicationSupportsSecureRestorableState()`
+  /// to return`true` so it’s enabled on all supported OS versions.
+  ///
+  /// This is about conformance to [NSSecureCoding](https://developer.apple.com/documentation/foundation/nssecurecoding)
+  /// which protects against object substitution attacks. If an application does not implement this method then a warning will be emitted
+  /// reporting secure coding is not enabled for restorable state.
+  @available(macOS 12.0, *)
+  @MainActor func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
   // MARK: - Accept dropped string and URL
 
@@ -796,9 +814,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         player.mpv.setFlag(MPVOption.Window.fullscreen, true)
       } else if let pipValue = queryDict["pip"], pipValue == "1" {
         // pip
-        if #available(macOS 10.12, *) {
-          player.mainWindow.enterPIP()
-        }
+        player.mainWindow.enterPIP()
       }
 
       // mpv options
@@ -828,7 +844,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     if panel.runModal() == .OK {
       if Preference.bool(for: .recordRecentFiles) {
         for url in panel.urls {
-          NSDocumentController.shared.noteNewRecentDocumentURL(url)
+          noteNewRecentDocumentURL(url)
         }
       }
       let isAlternative = (sender as? NSMenuItem)?.tag == AlternativeMenuItemTag
@@ -965,6 +981,131 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     let micro = AppDelegate.avVersionMicro(version)
     return "\(major).\(minor).\(micro)"
   }
+
+  // MARK: - Recent Documents
+
+  /// Empties the recent documents list for the application.
+  ///
+  /// This is part of a workaround for macOS Sonoma clearing the list of recent documents. See the method
+  /// `restoreRecentDocuments` and the issue [#4688](https://github.com/iina/iina/issues/4688) for more
+  /// information..
+  /// - Parameter sender: The object that initiated the clearing of the recent documents.
+  @IBAction
+  func clearRecentDocuments(_ sender: Any?) {
+    NSDocumentController.shared.clearRecentDocuments(sender)
+    saveRecentDocuments()
+  }
+
+  /// Adds or replaces an Open Recent menu item corresponding to the data located by the URL.
+  ///
+  /// This is part of a workaround for macOS Sonoma clearing the list of recent documents. See the method
+  /// `restoreRecentDocuments` and the issue [#4688](https://github.com/iina/iina/issues/4688) for more
+  /// information..
+  /// - Parameter url: The URL to evaluate.
+  func noteNewRecentDocumentURL(_ url: URL) {
+    NSDocumentController.shared.noteNewRecentDocumentURL(url)
+    saveRecentDocuments()
+  }
+
+  /// Restore the list of recently opened files.
+  ///
+  /// For macOS Sonoma `sharedfilelistd` was changed to tie the list of recent documents to the app based on its certificate.
+  /// if `sharedfilelistd` determines the list is being accessed by a different app then it clears the list. See issue
+  /// [#4688](https://github.com/iina/iina/issues/4688) for details.
+  ///
+  /// This new behavior does not cause a problem when the code is signed with IINA's certificate. However developer and nightly
+  /// builds use an ad hoc certificate. This causes the list of recently opened files to be cleared each time a different unsigned IINA build
+  /// is run. As a workaround a copy of the list of recent documents is saved in IINA's preference file to preserve the list and allow it to
+  /// be restored when `sharedfilelistd` clears its list.
+  ///
+  /// If the following is true:
+  /// - Workaround has been enabled by setting `enableRecentDocumentsWorkaround`
+  /// - Running under macOS Sonoma and above
+  /// - Recording of recent files is enabled
+  /// - The list in  [NSDocumentController.shared.recentDocumentURLs](https://developer.apple.com/documentation/appkit/nsdocumentcontroller/1514976-recentdocumenturls) is empty
+  /// - The list in the IINA setting `recentDocuments` is not empty
+  ///
+  /// Then this method assumes that the macOS daemon `sharedfilelistd` cleared the list and it populates the list of recent
+  /// document URLs with the list stored in IINA's settings.
+  /// - Note: This workaround can cause significant slowdown at startup if the list of recent documents contains files on a mounted
+  ///         volume that is unreachable. For this reason the workaround is disabled by default and must be enabled by running the
+  ///         following command in [Terminal](https://support.apple.com/guide/terminal/welcome/mac):
+  ///         `defaults write com.colliderli.iina enableRecentDocumentsWorkaround true`
+  private func restoreRecentDocuments() {
+    guard Preference.bool(for: .enableRecentDocumentsWorkaround),
+          #available(macOS 14, *), Preference.bool(for: .recordRecentFiles),
+          NSDocumentController.shared.recentDocumentURLs.isEmpty,
+          let recentDocuments = Preference.array(for: .recentDocuments),
+          !recentDocuments.isEmpty else { return }
+    var foundStale = false
+    for document in recentDocuments {
+      var isStale = false
+      // Recent documents are normally stored as bookmark data.
+      guard let asData = document as? Data else {
+        guard let asString = document as? String, let url = URL(string: asString) else {
+          // Should never occur. This is an internal error.
+          Logger.log("Saved recent document is of unrecognized type: \(type(of: document))",
+                     level: .error)
+          continue
+        }
+        // Saving as a bookmark must have failed and instead the URL was saved as a string.
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        continue
+      }
+      // Must not cause macOS to prompt the user to mount a volume when the list contains files that
+      // are on volumes that are not currently mounted.
+      guard let bookmark = try? URL(resolvingBookmarkData: asData,
+                                    options: [.withoutMounting, .withoutUI],
+                                    bookmarkDataIsStale: &isStale) else {
+        // Creating a URL from a bookmark fails if the original file can not be located or is on a
+        // volume that is not mounted. Form a URL from the path contained in the bookmark.
+        guard let resource = URL.resourceValues(forKeys: [.pathKey], fromBookmarkData: asData),
+              let path = resource.path, let url = URL(string: path) else {
+          Logger.log("Unable to obtain obtain the path from a bookmark", level: .error)
+          continue
+        }
+        Logger.log("Unable to create a bookmark, creating URL from path for: \(path)", level: .verbose)
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        continue
+      }
+      foundStale = foundStale || isStale
+      NSDocumentController.shared.noteNewRecentDocumentURL(bookmark)
+    }
+    Logger.log("Restored list of recent documents")
+    guard foundStale else { return }
+    Logger.log("Found stale bookmarks in saved recent documents")
+    // Save the recent documents in order to refresh stale bookmarks.
+    saveRecentDocuments()
+  }
+
+  /// Save the list of recently opened files.
+  ///
+  /// Save the list of recent documents in [NSDocumentController.shared.recentDocumentURLs](https://developer.apple.com/documentation/appkit/nsdocumentcontroller/1514976-recentdocumenturls)
+  /// to `recentDocuments` in the IINA settings property file.
+  ///
+  /// This is part of a workaround for macOS Sonoma clearing the list of recent documents. See the method
+  /// `restoreRecentDocuments` and the issue [#4688](https://github.com/iina/iina/issues/4688) for more
+  /// information..
+  func saveRecentDocuments() {
+    guard Preference.bool(for: .enableRecentDocumentsWorkaround), #available(macOS 14, *) else { return }
+    var recentDocuments: [Any] = []
+    for document in NSDocumentController.shared.recentDocumentURLs {
+      guard let bookmark = try? document.bookmarkData() else {
+        // Fall back to storing a string when unable to create a bookmark.
+        let path = document.absoluteString
+        Logger.log("Unable to create a bookmark, saving recent document as a string: \(path)")
+        recentDocuments.append(path)
+        continue
+      }
+      recentDocuments.append(bookmark)
+    }
+    Preference.set(recentDocuments, for: .recentDocuments)
+    if recentDocuments.isEmpty {
+      Logger.log("Cleared list of recent documents")
+    } else {
+      Logger.log("Saved list of recent documents")
+    }
+  }
 }
 
 
@@ -989,10 +1130,14 @@ struct CommandLineStatus {
         let strippedName = String(name.dropFirst(4))
         if strippedName == "-" {
           isStdin = true
-        } else if splitted.count <= 1 {
-          mpvArguments.append((strippedName, "yes"))
         } else {
-          mpvArguments.append((strippedName, String(splitted[1])))
+          let argPair: (String, String)
+          if splitted.count <= 1 {
+            argPair = (strippedName, "yes")
+          } else {
+            argPair = (strippedName, String(splitted[1]))
+          }
+          mpvArguments.append(argPair)
         }
       } else {
         // other args
@@ -1017,15 +1162,20 @@ struct CommandLineStatus {
     }
   }
 
-  func assignMPVArguments(to playerCore: PlayerCore) {
+  func applyMPVArguments(to playerCore: PlayerCore) {
     Logger.log("Setting mpv properties from arguments: \(mpvArguments)")
-    for arg in mpvArguments {
-      playerCore.mpv.setString(arg.0, arg.1)
+    for argPair in mpvArguments {
+      if argPair.0 == "shuffle" && argPair.1 == "yes" {
+        // Special handling for this one
+        Logger.log("Found \"shuffle\" request in command-line args. Adding mpv hook to shuffle playlist")
+        playerCore.addShufflePlaylistHook()
+        continue
+      }
+      playerCore.mpv.setString(argPair.0, argPair.1)
     }
   }
 }
 
-@available(macOS 10.13, *)
 class RemoteCommandController {
   static let remoteCommand = MPRemoteCommandCenter.shared()
 
@@ -1057,7 +1207,7 @@ class RemoteCommandController {
       return .success
     }
     remoteCommand.changeRepeatModeCommand.addTarget { _ in
-      PlayerCore.lastActive.togglePlaylistLoop()
+      PlayerCore.lastActive.nextLoopMode()
       return .success
     }
     remoteCommand.changeShuffleModeCommand.isEnabled = false

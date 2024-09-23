@@ -75,18 +75,19 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
 
     guard let window = window else { return }
 
-    window.styleMask = [.fullSizeContentView, .titled, .resizable, .closable]
+    window.styleMask = [.fullSizeContentView, .titled, .resizable, .closable, .miniaturizable]
     window.isMovableByWindowBackground = true
     window.titleVisibility = .hidden
     ([.closeButton, .miniaturizeButton, .zoomButton, .documentIconButton] as [NSWindow.ButtonType]).forEach {
       let button = window.standardWindowButton($0)
       button?.isHidden = true
-      // The close button, being obscured by standard buttons, won't respond to clicking when window is inactive.
-      // i.e. clicking close button (or any position located in the standard buttons's frame) will only order the window
-      // to front, but it never becomes key or main window.
-      // Removing the button directly will also work but it causes crash on 10.12-, so for the sake of safety we don't use that way for now.
-      // FIXME: Not a perfect solution. It should respond to the first click.
-      button?.frame.size = .zero
+      // Update: since IINA now drops 10.12 support, removed this workaround to enable minimizing mini player
+      // > The close button, being obscured by standard buttons, won't respond to clicking when window is inactive.
+      // > i.e. clicking close button (or any position located in the standard buttons's frame) will only order the window
+      // > to front, but it never becomes key or main window.
+      // > Removing the button directly will also work but it causes crash on 10.12-, so for the sake of safety we don't use that way for now.
+      // > Not a perfect solution. It should respond to the first click.
+      // button?.frame.size = .zero
     }
 
     setToInitialWindowSize(display: false, animate: false)
@@ -112,11 +113,11 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
     // close button
     closeButtonVE.action = #selector(self.close)
     closeButtonBox.action = #selector(self.close)
-    closeButtonView.alphaValue = 0
     closeButtonBackgroundViewVE.roundCorners(withRadius: 8)
-    closeButtonBackgroundViewBox.isHidden = true
 
-    // switching UI
+    // hide controls initially
+    closeButtonBackgroundViewBox.isHidden = true
+    closeButtonView.alphaValue = 0
     controlView.alphaValue = 0
     
     // tool tips
@@ -131,23 +132,6 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
     }
     volumeSlider.maxValue = Double(Preference.integer(for: .maxVolume))
     volumePopover.delegate = self
-  }
-
-  override internal func setMaterial(_ theme: Preference.Theme?) {
-    if #available(macOS 10.14, *) {
-      super.setMaterial(theme)
-      return
-    }
-    guard let window = window, let theme = theme else { return }
-
-    let (appearance, material) = Utility.getAppearanceAndMaterial(from: theme)
-
-    [backgroundView, closeButtonBackgroundViewVE, playlistWrapperView].forEach {
-      $0?.appearance = appearance
-      $0?.material = material
-    }
-
-    window.appearance = appearance
   }
 
   // MARK: - Mouse / Trackpad events
@@ -184,10 +168,9 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
   // MARK: - Window delegate: Open / Close
 
   func windowWillClose(_ notification: Notification) {
-    player.switchedToMiniPlayerManually = false
-    player.switchedBackFromMiniPlayerManually = false
-    if !player.isShuttingDown {
+    if player.info.state != .shuttingDown && player.info.state != .shutDown {
       // not needed if called when terminating the whole app
+      player.overrideAutoSwitchToMusicMode = false
       player.switchBackFromMiniPlayer(automatically: true, showMainWindow: false)
     }
     player.mainWindow.close()
@@ -281,28 +264,15 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
     guard loaded else { return }
     super.updateVolume()
     volumeLabel.intValue = Int32(player.info.volume)
-    if player.info.isMuted {
-      volumeButton.image = NSImage(named: "mute")
-    } else {
-      switch volumeLabel.intValue {
-        case 0:
-          volumeButton.image = NSImage(named: "volume-0")
-        case 1...33:
-          volumeButton.image = NSImage(named: "volume-1")
-        case 34...66:
-          volumeButton.image = NSImage(named: "volume-2")
-        case 67...1000:
-          volumeButton.image = NSImage(named: "volume")
-        default:
-          break
-      }
-    }
+    let image = volumeIcon()
+    muteButton.image = image
+    volumeButton.image = image
   }
 
   func updateVideoSize() {
     guard let window = window else { return }
-    let (width, height) = player.originalVideoSize
-    let aspect = (width == 0 || height == 0) ? 1 : CGFloat(width) / CGFloat(height)
+    let (width, height) = defaultAlbumArt.isHidden ? player.videoSizeForDisplay : (1, 1)
+    let aspect = CGFloat(width) / CGFloat(height)
     let currentHeight = videoView.frame.height
     let newHeight = videoView.frame.width / aspect
     updateVideoViewAspectConstraint(withAspect: aspect)
@@ -400,7 +370,7 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
   }
 
   @IBAction func backBtnAction(_ sender: NSButton) {
-    player.switchBackFromMiniPlayer(automatically: false)
+    player.switchBackFromMiniPlayer()
   }
 
   @IBAction func nextBtnAction(_ sender: NSButton) {
@@ -423,16 +393,6 @@ class MiniPlayerWindowController: PlayerWindowController, NSPopoverDelegate {
 
   private func normalWindowHeight() -> CGFloat {
     return 72 + (isVideoVisible ? videoWrapperView.frame.height : 0)
-  }
-
-  internal override func handleIINACommand(_ cmd: IINACommand) {
-    super.handleIINACommand(cmd)
-    switch cmd {
-    case .toggleMusicMode:
-      menuSwitchToMiniPlayer(.dummy)
-    default:
-      break
-    }
   }
 
 }

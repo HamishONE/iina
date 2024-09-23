@@ -11,10 +11,16 @@
 "3kI-6i-ujt.title" = "اللون:";
 
 /* Class = "NSTextFieldCell"; title = "+12 dB"; ObjectID = "4BZ-H1-GEU"; */
-"4BZ-H1-GEU.title" = "+12 dB";
+"4BZ-H1-GEU.title" = "+١٢ ديسيبل";
 
 /* Class = "NSTextFieldCell"; title = "Color:"; ObjectID = "6LO-6y-IsA"; */
 "6LO-6y-IsA.title" = "اللون:";
+
+/* Class = "NSSegmentedCell"; 88M-pi-2Hc.ibShadowedLabels[0] = "Primary Subtitles"; ObjectID = "88M-pi-2Hc"; */
+"88M-pi-2Hc.ibShadowedLabels[0]" = "Primary Subtitles";
+
+/* Class = "NSSegmentedCell"; 88M-pi-2Hc.ibShadowedLabels[1] = "Secondary Subtitles"; ObjectID = "88M-pi-2Hc"; */
+"88M-pi-2Hc.ibShadowedLabels[1]" = "Secondary Subtitles";
 
 /* Class = "NSButtonCell"; title = "Load External Audio Track…"; ObjectID = "8Ax-5X-osl"; */
 "8Ax-5X-osl.title" = "استخدام ملف صوت خارجي…";
@@ -42,9 +48,6 @@
 
 /* Class = "NSTextFieldCell"; title = "BORDER"; ObjectID = "GlZ-YU-dNm"; */
 "GlZ-YU-dNm.title" = "حد";
-
-/* Class = "NSTextFieldCell"; title = "31.25"; ObjectID = "HBF-J7-Tie"; */
-"HBF-J7-Tie.title" = "٣١٫٢٥";
 
 /* Class = "NSTextFieldCell"; title = "-5s"; ObjectID = "IYU-eq-dls"; */
 "YCG-xK-eAs.title" = "-٥ث";
@@ -140,7 +143,7 @@
 "iuN-rN-jT7.ibShadowedLabels[0]" = "لا شيء";
 
 /* Class = "NSSegmentedCell"; iuN-rN-jT7.ibShadowedLabels[6] = "Custom…"; ObjectID = "iuN-rN-jT7"; */
-"iuN-rN-jT7.ibShadowedLabels[6]" = "Custom…";
+"iuN-rN-jT7.ibShadowedLabels[6]" = "مخصص…";
 
 /* Class = "NSTabViewItem"; label = "Subtitle"; ObjectID = "jND-MZ-sKB"; */
 "jND-MZ-sKB.label" = "الترجمة";
@@ -173,7 +176,7 @@
 "t03-36-Zge.title" = "Position:";
 
 /* Class = "NSTextFieldCell"; title = "Rotation:"; ObjectID = "to3-rc-Agv"; */
-"to3-rc-Agv.title" = "Rotation:";
+"to3-rc-Agv.title" = "التدوير:";
 
 /* Class = "NSTextFieldCell"; title = "-5s"; ObjectID = "uCX-EC-jXM"; */
 "uCX-EC-jXM.title" = "-٥ث";
@@ -185,16 +188,40 @@
 "upM-Lz-YwK.title" = "٠ث";
 
 /* Class = "NSTextFieldCell"; title = "BACKGROUND"; ObjectID = "uqb-mz-A22"; */
-"uqb-mz-A22.title" = "BACKGROUND";
+"uqb-mz-A22.title" = "الخلفية";
 
 /* Class = "NSTextFieldCell"; title = "Subtitle style options may break ASS rendering, and some of them will be disabled depending on subtitle type."; ObjectID = "wBD-pZ-Bvu"; */
 "wBD-pZ-Bvu.title" = "Subtitle style options may break ASS rendering, and some of them will be disabled depending on subtitle type.";
 
 /* Class = "NSTextFieldCell"; title = "Audio track:"; ObjectID = "x39-62-7KC"; */
-"x39-62-7KC.title" = "Audio track:";
+"x39-62-7KC.title" = "ملف الصوت:";
 
 /* Class = "NSTextFieldCell"; title = "+5s"; ObjectID = "xfX-wr-DTJ"; */
-"xfX-wr-DTJ.title" = "+5s";
+"xfX-wr-DTJ.title" = "+٥ث";
+
+/* Class = "NSTextFieldCell"; title = "+5s"; ObjectID = "Kt8-Kg-i2O"; */
+"Kt8-Kg-i2O.title" = "+٥ث";
 
 /* Class = "NSTextFieldCell"; title = "Equalizer"; ObjectID = "zcD-Tg-7Oi"; */
 "zcD-Tg-7Oi.title" = "موازن الصوت:";
+
+/* Class = "NSTextFieldCell"; title = "Hardware Decoding"; ObjectID = "rw1-Qb-0RV"; */
+"rw1-Qb-0RV.title" = "فك ترميز الجهاز";
+
+/* Class = "NSTextFieldCell"; title = "Deinterlace"; ObjectID = "eqd-nF-8ff"; */
+"eqd-nF-8ff.title" = "تصحيح تشابك الصورة";
+
+/* Class = "NSTextFieldCell"; title = "HDR"; ObjectID = "UW4-by-XRS"; */
+"UW4-by-XRS.title" = "النطاق الديناميكي العالي HDR";
+
+/* Class = "NSMenuItem"; title = "Save the current EQ as a preset…"; ObjectID = "sE0-LN-T8i"; */
+"sE0-LN-T8i.title" = "Save the current EQ as a preset…";
+
+/* Class = "NSMenuItem"; title = "Rename the current EQ preset…"; ObjectID = "2tD-0L-UUs"; */
+"2tD-0L-UUs.title" = "Rename the current EQ preset…";
+
+/* Class = "NSMenuItem"; title = "Remove the current EQ preset"; ObjectID = "dvI-Rj-7qF"; */
+"dvI-Rj-7qF.title" = "Remove the current EQ preset";
+
+/* Class = "NSMenuItem"; title = "Manual"; ObjectID = "LPh-nJ-GjN"; */
+"LPh-nJ-GjN.title" = "Manual";

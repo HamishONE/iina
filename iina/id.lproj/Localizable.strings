@@ -16,6 +16,9 @@
 "general.username" = "Nama pengguna";
 "general.password" = "Kata sandi";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Sorotan";
 "guide.basic_settings" = "Pengaturan Dasar";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Nightly tidak disarankan untuk digunakan sebagai drive harian. Bangunan nightly saat ini tidak mendukung pembaruan otomatis. Unduh bangunan baru secara manual dari <a href=\"https://nightly.iina.io\">situs web nightly</a> kami.";
 "initial.debug.desc" = "Bangunan debug biasanya tidak dioptimalkan performanya, sehingga tidak disarankan untuk digunakan sebagai drive harian. Bangunan debug tidak mendukung pembaruan otomatis.";
 "initial.bug_report" = "Laporkan melalui <a href=\"https://github.com/iina/iina/issues\">Masalah GitHub</a>.";
+
+// Inspector Window
+"inspector.error" = "Eror";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Menyangga… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Dekoding perangkat keras";
 "quicksetting.deinterlace" = "Deinterlace";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Sembunyikan";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Jeda";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Penundaan Terjemahan: %.2f dtk lebih cepat";
 "osd.sub_delay.earlier" = "Penundaan Terjemahan: %.2f dtk lebih lambat";
 "osd.subtitle_pos" = "Posisi Terjemahan: %.1f";
+"osd.sub_hidden" = "Subtitles Hidden";
+"osd.sub_visible" = "Subtitles Visible";
+"osd.sub_second_delay.nodelay" = "Secondary Subtitle Delay: No Delay";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Secondary Subtitle Delay: %.2fs Earlier";
+"osd.sub_second_hidden" = "Secondary Subtitles Hidden";
+"osd.sub_second_pos" = "Secondary Subtitle Position: %.1f";
+"osd.sub_second_visible" = "Secondary Subtitles Visible";
 "osd.mute" = "Bisukan Suara";
 "osd.unmute" = "Nyalakan Suara";
 "osd.screenshot" = "Tangkapan Layar Berhasil";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Mencari terjemahan online…";
 "osd.find_online_sub.source" = "dari";
 "osd.sub_not_found" = "Terjemahan tidak ditemukan";
-"osd.sub_found" = "%d terjemahan ditemukan. Mengunduh…";
+"osd.sub_found" = "%d subtitles found.";
+"osd.sub_downloading" = "Downloading %d subtitles";
 "osd.sub_downloaded" = "Terjemahan terunduh";
 "osd.sub_saved" = "Terjemahan tersimpan";
 "osd.network_error" = "Jaringan bermasalah";
 "osd.file_error" = "Terjadi kesalahan membaca file";
 "osd.cannot_login" = "Tidak bisa masuk";
 "osd.canceled" = "Dibatalkan";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "Tidak dapat terhubung";
+"osd.timed_out" = "Terputus";
 "osd.filter_added" = "Filter yang ditambahkan: %@";
 "osd.filter_removed" = "Filter Terhapus";
-"osd.file_loop" = "Pengulangan File: %@";
-"osd.playlist_loop" = "Pengulangan Daftar Putar: %@";
+"osd.file_loop" = "Pengulangan Pada Satu File";
+"osd.playlist_loop" = "Pengulangan Pada Playlist";
+"osd.no_loop" = "Nonaktifkan Mode Pengulangan";
 
 "preference.title" = "Preferensi";
 "preference.general" = "Umum";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Aktifkan pengaturan lanjutan";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "strip";
+"preference.sub_override_level.yes" = "yes";
+
 "menu.volume" = "Volume: %d";
 "menu.volume_muted" = "Volume: %d (Dimatikan)";
 "menu.audio_delay" = "Penundaan Audio: %.2f dtk";
 "menu.sub_delay" = "Penundaan Terjemahan: %.2f dtk";
+"menu.sub_hide" = "Hide Subtitles";
+"menu.sub_show" = "Show Subtitles";
+"menu.sub_second_hide" = "Hide Secondary Subtitles";
+"menu.sub_second_show" = "Show Secondary Subtitles";
 "menu.fullscreen" = "Masuk Layar Penuh";
 "menu.exit_fullscreen" = "Keluar dari Layar Penuh";
 "menu.pip" = "Masuk Picture-in-Picture";
 "menu.exit_pip" = "Keluar dari Picture-in-Picture";
+"menu.mini_player" = "Aktifkan Mode Musik";
+"menu.exit_mini_player" = "Keluar dari Mode Musik";
 "menu.pause" = "Jeda";
 "menu.resume" = "Lanjutkan";
 "menu.speed" = "Kecepatan: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Penundaan Terjemahan + %.1fdtk";
 "menu.sub_delay_down" = "Penundaan Terjemahan - %.1fdtk";
 
-"menu.crop_custom" = "Kustom...";
+"menu.crop_custom" = "Kustom…";
 "menu.find_online_sub" = "Cari Terjemahan Online dari %@";
 
+"track.audio" = "Audio";
 "track.none" = "<Tidak Ada>";
+"track.sub" = "Terjemahan";
+"track.video" = "Video";
 
 "subtrack.no_loaded" = "Tidak Ada Terjemahan Aktif";
 "subtrack.no_external" = "Terjemahan Eksternal Tidak Ditemukan";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Kesalahan fatal: %@ \nAplikasi akan ditutup sekarang.";
 "alert.mpv_error" = "Kesalahan internal %@ (%@) saat menerapkan opsi %@.";
-"alert.sleep" = "Tidak bisa menonaktifkan istirahat layar! (0x%0X8)";
 
 "alert.unsupported_audio" = "File audio eksternal tidak didukung.";
 "alert.unsupported_sub" = "File terjemahan eksternal tidak didukung.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Duplikat Konfigurasi";
 "alert.config.duplicate.message" = "Masukkan nama untuk duplikasi konfigurasi.";
 "alert.config.empty_name" = "Nama tidak boleh kosong.";
-"alert.config.name_existing" = "Nama ini sudah ada.";
+"alert.config.name_existing" = "A config with the same name already exists.";
 "alert.config.file_existing.title" = "File Sudah Ada";
-"alert.config.file_existing.message" = "This should not happen. Choose OK to overwrite, Cancel to reveal the file in Finder.";
+"alert.config.file_existing.message" = "A config file with the same filename already exists. Choose OK to show the file in Finder.";
 "alert.config.cannot_create" = "Tidak dapat membuat file konfigurasi!\n%@";
 "alert.config.cannot_write" = "Tidak dapat menulis pada file konfig!";
+"alert.config.rename.title" = "Rename Input Configuration";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Kesalahan terjadi saat menyetel filter. Mohon cek kembali format parameter Anda.";
 "alert.add_filter.title" = "Filter Baru";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Aktif/nonaktifkan layar penuh";
 "osc_toolbar.music_mode" = "Aktifkan mode musik";
 "osc_toolbar.sub_track" = "Pilih trek terjemahan";
+"osc_toolbar.screenshot" = "Ambil tangkapan layar";
 
 "mini_player.album_art" = "Aktif/nonaktifkan Album Art";
 "mini_player.loop" = "Ulangi";

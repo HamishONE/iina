@@ -8,6 +8,13 @@
 
 import Cocoa
 
+fileprivate let eqUserDefinedProfileMenuItemTag = 0
+fileprivate let eqPresetProfileMenuItemTag = 1
+fileprivate let eqDeleteMenuItemTag = -1
+fileprivate let eqRenameMenuItemTag = -2
+fileprivate let eqSaveMenuItemTag = -3
+fileprivate let eqCustomMenuItemTag = 1000
+
 class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, SidebarViewController {
   override var nibName: NSNib.Name {
     return NSNib.Name("QuickSettingViewController")
@@ -110,12 +117,27 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBOutlet weak var speedSlider: NSSlider!
   @IBOutlet weak var speedSliderIndicator: NSTextField!
   @IBOutlet weak var speedSliderConstraint: NSLayoutConstraint!
+  @IBOutlet weak var speedSliderContainerView: NSView!
+
+  @IBOutlet weak var speedSlider0_25xLabel: NSTextField!
+  @IBOutlet weak var speedSlider1xLabel: NSTextField!
+  @IBOutlet weak var speedSlider4xLabel: NSTextField!
+  @IBOutlet weak var speedSlider16xLabel: NSTextField!
+  @IBOutlet var speedSlider1xLabelCenterXConstraint: NSLayoutConstraint!
+  @IBOutlet var speedSlider4xLabelCenterXConstraint: NSLayoutConstraint!
+  @IBOutlet var speedSlider1xLabelPrevLabelConstraint: NSLayoutConstraint!
+  @IBOutlet var speedSlider4xLabelPrevLabelConstraint: NSLayoutConstraint!
+  @IBOutlet var speedSlider16xLabelPrevLabelConstraint: NSLayoutConstraint!
+
   @IBOutlet weak var customSpeedTextField: NSTextField!
   @IBOutlet weak var switchHorizontalLine: NSBox!
   @IBOutlet weak var switchHorizontalLine2: NSBox!
-  @IBOutlet weak var hardwareDecodingSwitch: Switch!
-  @IBOutlet weak var deinterlaceSwitch: Switch!
-  @IBOutlet weak var hdrSwitch: Switch!
+  @IBOutlet weak var hardwareDecodingSwitch: NSSwitch!
+  @IBOutlet weak var deinterlaceSwitch: NSSwitch!
+  @IBOutlet weak var hdrSwitch: NSSwitch!
+  @IBOutlet weak var hardwareDecodingLabel: NSTextField!
+  @IBOutlet weak var deinterlaceLabel: NSTextField!
+  @IBOutlet weak var hdrLabel: NSTextField!
 
   @IBOutlet weak var brightnessSlider: NSSlider!
   @IBOutlet weak var contrastSlider: NSSlider!
@@ -128,13 +150,16 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBOutlet weak var audioDelaySliderConstraint: NSLayoutConstraint!
   @IBOutlet weak var customAudioDelayTextField: NSTextField!
 
-
+  @IBOutlet weak var hideSwitch: NSSwitch!
+  @IBOutlet weak var secHideSwitch: NSSwitch!
   @IBOutlet weak var subLoadSementedControl: NSSegmentedControl!
   @IBOutlet weak var subDelaySlider: NSSlider!
   @IBOutlet weak var subDelaySliderIndicator: NSTextField!
   @IBOutlet weak var subDelaySliderConstraint: NSLayoutConstraint!
   @IBOutlet weak var customSubDelayTextField: NSTextField!
+  @IBOutlet weak var subSegmentedControl: NSSegmentedControl!
 
+  @IBOutlet weak var eqPopUpButton: NSPopUpButton!
   @IBOutlet weak var audioEqSlider1: NSSlider!
   @IBOutlet weak var audioEqSlider2: NSSlider!
   @IBOutlet weak var audioEqSlider3: NSSlider!
@@ -164,6 +189,12 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   private var pluginTabsStackView: NSStackView!
   private var pluginTabs: [String: SidebarTabView] = [:]
 
+  private lazy var eqSliders: [NSSlider] = [audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
+                                            audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10]
+
+  private var lastUsedProfileName: String = ""
+  private var inputString: String = ""
+
   var downShift: CGFloat = 0 {
     didSet {
       buttonTopConstraint.constant = downShift
@@ -179,9 +210,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     }
 
     // colors
-    if #available(macOS 10.14, *) {
-      withAllTableViews { tableView, _ in tableView.backgroundColor = NSColor(named: .sidebarTableBackground)! }
-    }
+    withAllTableViews { tableView, _ in tableView.backgroundColor = NSColor(named: .sidebarTableBackground)! }
 
     setupPluginTabs()
     if pendingSwitchRequest == nil {
@@ -197,6 +226,18 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     switchHorizontalLine2.wantsLayer = true
     switchHorizontalLine2.layer?.opacity = 0.5
 
+    if let data = UserDefaults.standard.data(forKey: Preference.Key.userEQPresets.rawValue),
+       let dict = try? JSONDecoder().decode(Dictionary<String, EQProfile>.self, from: data) {
+      userEQs = dict
+    }
+
+    eqPopUpButton.menu!.delegate = self
+    presetEQs.forEach { preset in
+      eqPopUpButton.menu?.addItem(withTitle: preset.name, tag: eqPresetProfileMenuItemTag, obj: preset.localizationKey)
+    }
+    eqPopUpButton.selectItem(withTag: eqCustomMenuItemTag)
+    lastUsedProfileName = eqPopUpButton.selectedItem!.title
+
     func observe(_ name: Notification.Name, block: @escaping (Notification) -> Void) {
       observers.append(NotificationCenter.default.addObserver(forName: name, object: player, queue: .main, using: block))
     }
@@ -211,6 +252,94 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       self.subTableView.reloadData()
       self.secSubTableView.reloadData()
     }
+    observe(.iinaSecondSubVisibilityChanged) { [unowned self] _ in secHideSwitch.state = player.info.isSecondSubVisible ? .on : .off }
+    observe(.iinaSubVisibilityChanged) { [unowned self] _ in hideSwitch.state = player.info.isSubVisible ? .on : .off }
+  }
+
+  // MARK: - Right to Left Constraints
+
+  /// Prepares the receiver for service after it has been loaded from an Interface Builder archive, or nib file.
+  ///
+  /// If the user interface layout direction is right to left then certain layout constraints that assume a left to right layout will need to be
+  /// replaced. That will be handled by the `viewWillLayout` method. This method will disable these constraints to avoid triggering
+  /// constraint errors before the constraints can be replaced.
+  override func awakeFromNib() {
+    super.awakeFromNib()
+    guard speedSlider.userInterfaceLayoutDirection == .rightToLeft else { return }
+    NSLayoutConstraint.deactivate([
+      speedSlider1xLabelCenterXConstraint,
+      speedSlider4xLabelCenterXConstraint,
+      speedSlider1xLabelPrevLabelConstraint,
+      speedSlider4xLabelPrevLabelConstraint,
+      speedSlider16xLabelPrevLabelConstraint])
+  }
+
+  /// Calculate the constraint multiplier for a speed slider label.
+  ///
+  /// This method calculates the appropriate multiplier to use in a
+  /// [centerX](https://developer.apple.com/documentation/uikit/nslayoutconstraint/attribute/centerx)
+  /// constraint for a text field that sits under the speed slider and displays the speed associated with a particular tick mark.
+  /// - Parameter speed: Playback speed the label indicates.
+  /// - Returns: Multiplier to use in the constraint.
+  private func calculateSliderLabelMultiplier(speed: Double) -> CGFloat {
+    let tickIndex = Int(convertSpeedToSliderValue(speedSlider.closestTickMarkValue(toValue: speed)))
+    let tickRect = speedSlider.rectOfTickMark(at: tickIndex)
+    let tickCenterX = tickRect.origin.x + tickRect.width / 2
+    let containerViewX = speedSlider.frame.origin.x + tickCenterX
+    return containerViewX / speedSliderContainerView.frame.width
+  }
+
+  /// Called just before the `layout()` method of the view controller's view is called.
+  ///
+  /// If the user interface layout direction is right to left then this method will replace certain layout constraints with ones that properly
+  /// position the reversed views.
+  override func viewWillLayout() {
+    // When the layout is right to left the first time this method is called the views will not have
+    // been reversed. Once the views have been repositioned this method will be called again. Must
+    // wait for that to happen before adjusting constraints to avoid triggering constraint errors.
+    // Detect this based on the order of the speed slider labels.
+    guard speedSliderContainerView.userInterfaceLayoutDirection == .rightToLeft,
+          speedSlider16xLabel.frame.origin.x < speedSlider0_25xLabel.frame.origin.x else {
+      super.viewWillLayout()
+      return
+    }
+
+    // Deactive the layout constraints that will be replaced.
+    NSLayoutConstraint.deactivate([
+      speedSlider1xLabelCenterXConstraint,
+      speedSlider4xLabelCenterXConstraint,
+      speedSlider1xLabelPrevLabelConstraint,
+      speedSlider4xLabelPrevLabelConstraint,
+      speedSlider16xLabelPrevLabelConstraint])
+
+    // The multiplier in the constraints that position the 1x and 4x labels must be changed to
+    // reflect the reversed views.
+    speedSlider1xLabelCenterXConstraint = NSLayoutConstraint(
+      item: speedSlider1xLabel as Any, attribute: .centerX, relatedBy: .equal, toItem: speedSlider,
+      attribute: .right, multiplier: calculateSliderLabelMultiplier(speed: 1), constant: 0)
+    speedSlider4xLabelCenterXConstraint = NSLayoutConstraint(
+      item: speedSlider4xLabel as Any, attribute: .centerX, relatedBy: .equal, toItem: speedSlider,
+      attribute: .right, multiplier: calculateSliderLabelMultiplier(speed: 4), constant: 0)
+
+    // The constraints that impose an order on the labels must be changed to reflect the reversed
+    // views.
+    speedSlider1xLabelPrevLabelConstraint = NSLayoutConstraint(
+      item: speedSlider1xLabel as Any, attribute: .right, relatedBy: .lessThanOrEqual,
+      toItem: speedSlider0_25xLabel, attribute: .left, multiplier: 1, constant: 0)
+    speedSlider4xLabelPrevLabelConstraint = NSLayoutConstraint(
+      item: speedSlider4xLabel as Any, attribute: .right, relatedBy: .lessThanOrEqual,
+      toItem: speedSlider1xLabel, attribute: .left, multiplier: 1, constant: 0)
+    speedSlider16xLabelPrevLabelConstraint = NSLayoutConstraint(
+      item: speedSlider16xLabel as Any, attribute: .right, relatedBy: .lessThanOrEqual,
+      toItem: speedSlider4xLabel, attribute: .left, multiplier: 1, constant: 0)
+
+    NSLayoutConstraint.activate([
+      speedSlider1xLabelCenterXConstraint,
+      speedSlider4xLabelCenterXConstraint,
+      speedSlider1xLabelPrevLabelConstraint,
+      speedSlider4xLabelPrevLabelConstraint,
+      speedSlider16xLabelPrevLabelConstraint])
+    super.viewWillLayout()
   }
 
   // MARK: - Validate UI
@@ -236,6 +365,13 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     updateAudioEqState()
   }
 
+  /// Return the slider value that represents the given playback speed.
+  /// - Parameter speed: Playback speed.
+  /// - Returns: Appropriate slider value.
+  private func convertSpeedToSliderValue(_ speed: Double) -> Double {
+    log(speed / AppData.minSpeed) / log(AppData.maxSpeed / AppData.minSpeed) * sliderSteps
+  }
+
   private func updateVideoTabControl() {
     if let index = AppData.aspectsInPanel.firstIndex(of: player.info.unsureAspect) {
       aspectSegment.selectedSegment = index
@@ -250,27 +386,19 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     }
     rotateSegment.selectSegment(withTag: AppData.rotations.firstIndex(of: player.info.rotation) ?? -1)
 
-    deinterlaceSwitch.checked = player.info.deinterlace
-    deinterlaceSwitch.action = {
-      self.player.toggleDeinterlace($0)
-    }
-    hardwareDecodingSwitch.checked = player.info.hwdecEnabled
-    hardwareDecodingSwitch.action = {
-      self.player.toggleHardwareDecoding($0)
-    }
+    hardwareDecodingSwitch.state = player.info.hwdecEnabled ? .on : .off
+    deinterlaceSwitch.state = player.info.deinterlace ? .on : .off
     hdrSwitch.isEnabled = player.info.hdrAvailable
-    hdrSwitch.checked = player.info.hdrAvailable && player.info.hdrEnabled
-    if #available(macOS 10.15, *) {
-      hdrSwitch.action = {
-        self.player.info.hdrEnabled = $0
-        self.player.refreshEdrMode()
-      }
-    }
+    hdrSwitch.state = (player.info.hdrAvailable && player.info.hdrEnabled) ? .on : .off
+    
+    // These strings are also contained in the strings file of this view. Remove these lines if the localization of these strings are complete enough.
+    hardwareDecodingLabel.stringValue = NSLocalizedString("quicksetting.hwdec", comment: "Hardware Decoding")
+    deinterlaceLabel.stringValue = NSLocalizedString("quicksetting.deinterlace", comment: "Deinterlace")
+    hdrLabel.stringValue = NSLocalizedString("quicksetting.hdr", comment: "HDR")
 
     let speed = player.mpv.getDouble(MPVOption.PlaybackControl.speed)
     customSpeedTextField.doubleValue = speed
-    let sliderValue = log(speed / AppData.minSpeed) / log(AppData.maxSpeed / AppData.minSpeed) * sliderSteps
-    speedSlider.doubleValue = sliderValue
+    speedSlider.doubleValue = convertSpeedToSliderValue(speed)
     redraw(indicator: speedSliderIndicator, constraint: speedSliderConstraint, slider: speedSlider, value: "\(customSpeedTextField.stringValue)x")
   }
 
@@ -282,22 +410,29 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   private func updateSubTabControl() {
+    hideSwitch.state = player.info.isSubVisible ? .on : .off
+    secHideSwitch.state = player.info.isSecondSubVisible ? .on : .off
+
     if let currSub = player.info.currentTrack(.sub) {
       // FIXME: CollorWells cannot be disable?
       let enableTextSettings = !(currSub.isAssSub || currSub.isImageSub)
       [subTextColorWell, subTextSizePopUp, subTextBgColorWell, subTextBorderColorWell, subTextBorderWidthPopUp, subTextFontBtn].forEach { $0.isEnabled = enableTextSettings }
     }
 
-    let currSubScale = player.mpv.getDouble(MPVOption.Subtitles.subScale).clamped(to: 0.1...10)
-    let displaySubScale = Utility.toDisplaySubScale(fromRealSubScale: currSubScale)
-    subScaleSlider.doubleValue = displaySubScale + (displaySubScale > 0 ? -1 : 1)
-    let subDelay = player.mpv.getDouble(MPVOption.Subtitles.subDelay)
+    let isPrimary = (subSegmentedControl.selectedSegment == 0)
+    let delayOption = isPrimary ? MPVOption.Subtitles.subDelay : MPVOption.Subtitles.secondarySubDelay
+    let subDelay = player.mpv.getDouble(delayOption)
     subDelaySlider.doubleValue = subDelay
     customSubDelayTextField.doubleValue = subDelay
     redraw(indicator: subDelaySliderIndicator, constraint: subDelaySliderConstraint, slider: subDelaySlider, value: "\(customSubDelayTextField.stringValue)s")
 
-    let currSubPos = player.mpv.getInt(MPVOption.Subtitles.subPos)
+    let posOption = isPrimary ? MPVOption.Subtitles.subPos : MPVOption.Subtitles.secondarySubPos
+    let currSubPos = player.mpv.getInt(posOption)
     subPosSlider.intValue = Int32(currSubPos)
+
+    let currSubScale = player.mpv.getDouble(MPVOption.Subtitles.subScale).clamped(to: 0.1...10)
+    let displaySubScale = Utility.toDisplaySubScale(fromRealSubScale: currSubScale)
+    subScaleSlider.doubleValue = displaySubScale + (displaySubScale > 0 ? -1 : 1)
 
     let fontSize = player.mpv.getInt(MPVOption.Subtitles.subFontSize)
     subTextSizePopUp.selectItem(withTitle: fontSize.description)
@@ -320,16 +455,17 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   private func updateAudioEqState() {
-    if let filters = player.info.audioEqFilters {
-      withAllAudioEqSliders { slider in
-        if let gain = filters[slider.tag]?.stringFormat.dropLast().split(separator: "=").last {
+    if let filter = player.info.audioEqFilter {
+      let filters = filter.stringFormat.split(separator: ",")
+      zip(filters, eqSliders).forEach { (filter, slider) in
+        if let gain = filter.dropLast().split(separator: "=").last {
           slider.doubleValue = Double(gain) ?? 0
         } else {
           slider.doubleValue = 0
         }
       }
     } else {
-      withAllAudioEqSliders { $0.doubleValue = 0 }
+      eqSliders.forEach { $0.doubleValue = 0 }
     }
   }
 
@@ -397,11 +533,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     let currentTag = currentTab.buttonTag
     [videoTabBtn, audioTabBtn, subTabBtn].forEach { btn in
       let isActive = currentTag == btn!.tag
-      if #available(macOS 10.14, *) {
-        btn!.contentTintColor = isActive ? .sidebarTabTintActive : .sidebarTabTint
-      } else {
-        Utility.setBoldTitle(for: btn!, isActive)
-      }
+      btn!.contentTintColor = isActive ? .sidebarTabTintActive : .sidebarTabTint
     }
     pluginTabs.values.forEach { tab in
       if case .plugin(let id) = currentTab {
@@ -436,7 +568,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     player.info.hdrAvailable = available
     if isViewLoaded {
       hdrSwitch.isEnabled = available
-      hdrSwitch.checked = available && player.info.hdrEnabled
+      hdrSwitch.state = (available && player.info.hdrEnabled) ? .on : .off
     }
   }
 
@@ -460,7 +592,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     } else if tableView == audioTableView {
       return player.info.audioTracks.count + 1
     } else if tableView == subTableView || tableView == secSubTableView {
-      return player.info.subTracks.count + 1
+      return player.info.$subTracks.withLock { $0.count + 1 }
     } else {
       return 0
     }
@@ -520,8 +652,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   private func withAllAudioEqSliders(_ block: (NSSlider) -> Void) {
-    [audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
-     audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10].forEach {
+    eqSliders.forEach {
       block($0)
     }
   }
@@ -570,6 +701,19 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     }
   }
 
+  @IBAction func hardwareDecodingAction(_ sender: NSSwitch) {
+    player.toggleHardwareDecoding(sender.state == .on)
+  }
+  
+  @IBAction func deinterlaceAction(_ sender: NSSwitch) {
+    player.toggleDeinterlace(sender.state == .on)
+  }
+  
+  @IBAction func hdrAction(_ sender: NSSwitch) {
+    self.player.info.hdrEnabled = sender.state == .on
+    self.player.refreshEdrMode()
+  }
+
   private func redraw(indicator: NSTextField, constraint: NSLayoutConstraint, slider: NSSlider, value: String) {
     indicator.stringValue = value
     let offset: CGFloat = 6
@@ -601,8 +745,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       sender.stringValue = "1"
     }
     let value = customSpeedTextField.doubleValue
-    let sliderValue = log(value / AppData.minSpeed) / log(AppData.maxSpeed / AppData.minSpeed) * sliderSteps
-    speedSlider.doubleValue = sliderValue
+    speedSlider.doubleValue = convertSpeedToSliderValue(value)
     if player.info.playSpeed != value {
       player.setSpeed(value)
     }
@@ -662,8 +805,13 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
   @IBAction func loadExternalAudioAction(_ sender: NSButton) {
     let currentDir = player.info.currentURL?.deletingLastPathComponent()
-    Utility.quickOpenPanel(title: "Load external audio file", chooseDir: false, dir: currentDir,
-                           sheetWindow: player.currentWindow, allowedFileTypes: Utility.supportedFileExt[.audio]) { url in
+    Utility.quickOpenPanel(
+      title: "Load external audio file",
+      chooseDir: false,
+      dir: currentDir,
+      sheetWindow: player.currentWindow,
+      allowedFileTypes: Utility.playableFileExt
+    ) { url in
       self.player.loadExternalAudioFile(url)
       self.audioTableView.reloadData()
     }
@@ -697,28 +845,29 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     redraw(indicator: audioDelaySliderIndicator, constraint: audioDelaySliderConstraint, slider: audioDelaySlider, value: "\(sender.stringValue)s")
   }
 
+  func applyEQ(_ profile: EQProfile) {
+    zip(eqSliders, profile.gains).forEach { (slider, gain) in
+      slider.doubleValue = gain
+    }
+    player.setAudioEq(fromGains: profile.gains)
+  }
+
+
+
   @IBAction func audioEqSliderAction(_ sender: NSSlider) {
-    player.setAudioEq(fromGains: [
-      audioEqSlider1.doubleValue,
-      audioEqSlider2.doubleValue,
-      audioEqSlider3.doubleValue,
-      audioEqSlider4.doubleValue,
-      audioEqSlider5.doubleValue,
-      audioEqSlider6.doubleValue,
-      audioEqSlider7.doubleValue,
-      audioEqSlider8.doubleValue,
-      audioEqSlider9.doubleValue,
-      audioEqSlider10.doubleValue,
-      ])
+    player.setAudioEq(fromGains: eqSliders.map { $0.doubleValue })
+    eqPopUpButton.selectItem(withTag: eqCustomMenuItemTag)
   }
-
-  @IBAction func resetAudioEqAction(_ sender: AnyObject) {
-    player.removeAudioEqFilter()
-    updateAudioEqState()
-  }
-
 
   // MARK: Sub tab
+
+  @IBAction func hideSubAction(_ sender: NSSwitch) {
+    player.toggleSubVisibility()
+  }
+
+  @IBAction func hideSecSubAction(_ sender: NSSwitch) {
+    player.toggleSecondSubVisibility()
+  }
 
   @IBAction func loadExternalSubAction(_ sender: NSSegmentedControl) {
     if sender.selectedSegment == 0 {
@@ -798,6 +947,10 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     mainWindow.menuActionHandler.menuFindOnlineSub(.dummy)
   }
 
+  @IBAction func subSegmentedControlAction(_ sender: NSSegmentedControl) {
+    updateSubTabControl()
+  }
+
   @IBAction func subDelayChangedAction(_ sender: NSSlider) {
     let eventType = NSApp.currentEvent!.type
     if eventType == .leftMouseDown {
@@ -811,7 +964,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     redraw(indicator: subDelaySliderIndicator, constraint: subDelaySliderConstraint, slider: subDelaySlider, value: "\(customSubDelayTextField.stringValue)s")
     if let event = NSApp.currentEvent {
       if event.type == .leftMouseUp {
-        player.setSubDelay(sliderValue)
+        player.setSubDelay(sliderValue, forPrimary: subSegmentedControl.selectedSegment == 0)
       }
     }
   }
@@ -821,7 +974,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       sender.stringValue = "0"
     }
     let value = sender.doubleValue
-    player.setSubDelay(value)
+    player.setSubDelay(value, forPrimary: subSegmentedControl.selectedSegment == 0)
     subDelaySlider.doubleValue = value
     redraw(indicator: subDelaySliderIndicator, constraint: subDelaySliderConstraint, slider: subDelaySlider, value: "\(sender.stringValue)s")
   }
@@ -832,7 +985,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   @IBAction func subPosSliderAction(_ sender: NSSlider) {
-    player.setSubPos(Int(sender.intValue))
+    player.setSubPos(Int(sender.intValue), forPrimary: subSegmentedControl.selectedSegment == 0)
   }
 
   @IBAction func subScaleSliderAction(_ sender: NSSlider) {
@@ -879,6 +1032,96 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     }
   }
 
+}
+
+extension QuickSettingViewController: NSMenuDelegate {
+  private func promptAudioEQProfileName(isNewProfile: Bool) -> String? {
+    let key = isNewProfile ? "eq.new_profile" : "eq.rename"
+    let nameList = eqPopUpButton.itemArray
+      .filter{ $0.tag == eqPresetProfileMenuItemTag || $0.tag == eqUserDefinedProfileMenuItemTag }
+      .map{ $0.title }
+    let validator: Utility.InputValidator<String> = { input in
+      if input.isEmpty {
+        return .valueIsEmpty
+      }
+      if nameList.contains( where: { $0 == input } ) {
+        return .valueAlreadyExists
+      } else {
+        return .ok
+      }
+    }
+    var inputString: String?
+    Utility.quickPromptPanel(key, validator: validator, callback: { inputString = $0 })
+    return inputString
+  }
+  
+  func findItem(_ name: String, _ tag: Int = eqUserDefinedProfileMenuItemTag) -> NSMenuItem? {
+    return eqPopUpButton.itemArray.filter{ $0.tag == tag }.first { $0.title == name }
+  }
+
+  @IBAction func eqPopUpButtonAction(_ sender: NSPopUpButton) {
+    let tag = sender.selectedTag()
+    let name = sender.titleOfSelectedItem
+    let representedObject = sender.selectedItem?.representedObject as? String
+    switch tag {
+    case eqSaveMenuItemTag:
+      if let inputString = promptAudioEQProfileName(isNewProfile: true) {
+        let newProfile = EQProfile(fromCurrentSliders: eqSliders)
+        userEQs[inputString] = newProfile
+        menuNeedsUpdate(eqPopUpButton.menu!)
+        eqPopUpButton.select(findItem(inputString))
+      } else {
+        eqPopUpButton.select(findItem(lastUsedProfileName))
+      }
+    case eqRenameMenuItemTag:
+      if let inputString = promptAudioEQProfileName(isNewProfile: false) {
+        let profile = userEQs.removeValue(forKey: lastUsedProfileName)
+        userEQs[inputString] = profile
+        menuNeedsUpdate(eqPopUpButton.menu!)
+        eqPopUpButton.select(findItem(inputString))
+      } else {
+        eqPopUpButton.select(findItem(lastUsedProfileName))
+      }
+    case eqDeleteMenuItemTag:
+      userEQs.removeValue(forKey: lastUsedProfileName)
+      menuNeedsUpdate(eqPopUpButton.menu!)
+      eqPopUpButton.selectItem(withTag: eqCustomMenuItemTag)
+    case eqCustomMenuItemTag:
+      lastUsedProfileName = sender.selectedItem!.title
+    case eqPresetProfileMenuItemTag:
+      guard let preset = presetEQs.first(where: { $0.localizationKey == representedObject }) else { break }
+      lastUsedProfileName = preset.name
+      applyEQ(preset)
+    default: // user defined EQ Profiles
+      guard let pair = userEQs.first(where: { $0.0 == name }) else { break }
+      lastUsedProfileName = pair.0
+      applyEQ(pair.1)
+    }
+  }
+
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    let tag = eqPopUpButton.selectedTag()
+    let saveItem = menu.item(withTag: eqSaveMenuItemTag)!
+    let editingItems = [menu.item(withTag: eqRenameMenuItemTag)!, menu.item(withTag: eqDeleteMenuItemTag)!]
+
+    editingItems.forEach { $0.isEnabled = (tag == eqUserDefinedProfileMenuItemTag) }
+    saveItem.isEnabled = (tag == eqCustomMenuItemTag)
+
+    let selectedName = eqPopUpButton.titleOfSelectedItem!
+    let selectedTag = eqPopUpButton.selectedTag()
+    var items = menu.items
+    items.removeAll { $0.tag == eqUserDefinedProfileMenuItemTag }
+    if !userEQs.isEmpty {
+      items.append(NSMenuItem.separator())
+    }
+    menu.items = items
+    userEQs.forEach { (name, eq) in
+      menu.addItem(withTitle: name, tag: eqUserDefinedProfileMenuItemTag)
+    }
+    eqPopUpButton.select(findItem(selectedName, selectedTag))
+    eqPopUpButton.itemArray.forEach { $0.state = .off }
+    eqPopUpButton.selectedItem?.state = .on
+  }
 }
 
 class QuickSettingView: NSView {

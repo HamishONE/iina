@@ -16,7 +16,7 @@ class Utility {
   static let supportedFileExt: [MPVTrack.TrackType: [String]] = [
     .video: ["mkv", "mp4", "avi", "m4v", "mov", "3gp", "ts", "mts", "m2ts", "wmv", "flv", "f4v", "asf", "webm", "rm", "rmvb", "qt", "dv", "mpg", "mpeg", "mxf", "vob", "gif", "ogv", "ogm"],
     .audio: ["mp3", "aac", "mka", "dts", "flac", "ogg", "oga", "mogg", "m4a", "ac3", "opus", "wav", "wv", "aiff", "aif", "ape", "tta", "tak"],
-    .sub: ["utf", "utf8", "utf-8", "idx", "sub", "srt", "smi", "rt", "ssa", "aqt", "jss", "js", "ass", "mks", "vtt", "sup", "scc"]
+    .sub: ["utf", "utf8", "utf-8", "idx", "sub", "srt", "smi", "rt", "ssa", "aqt", "jss", "js", "ass", "mks", "vtt", "sup", "scc", "lrc"]
   ]
   static let playableFileExt = supportedFileExt[.video]! + supportedFileExt[.audio]!
   static let singleFilePlaylistExt = ["cue"]
@@ -24,6 +24,15 @@ class Utility {
   static let playlistFileExt = singleFilePlaylistExt + multipleFilePlaylistExt
   static let blacklistExt = supportedFileExt[.sub]! + multipleFilePlaylistExt
   static let lut3dExt = ["3dl", "cube", "dat", "m3d"]
+
+  enum ValidationResult {
+    case ok
+    case valueIsEmpty
+    case valueAlreadyExists
+    case custom(String)
+  }
+
+  typealias InputValidator<T> = (T) -> ValidationResult
 
   // MARK: - Logs, alerts
 
@@ -226,30 +235,83 @@ class Utility {
    - Returns: Whether user dismissed the panel by clicking OK. Only works when using `.modal` mode.
    */
   @discardableResult
-  static func quickPromptPanel(_ key: String, titleComment: String? = nil, messageComment: String? = nil, sheetWindow: NSWindow? = nil, callback: @escaping (String) -> Void) -> Bool {
+  static func quickPromptPanel(_ key: String, titleComment: String? = nil, messageComment: String? = nil,
+                               inputValue: String? = nil, validator: InputValidator<String>? = nil,
+                               sheetWindow: NSWindow? = nil, callback: @escaping (String) -> Void) -> Bool {
     let panel = NSAlert()
     let titleKey = "alert." + key + ".title"
     let messageKey = "alert." + key + ".message"
     panel.messageText = NSLocalizedString(titleKey, comment: titleComment ?? titleKey)
     panel.informativeText = NSLocalizedString(messageKey, comment: messageComment ?? messageKey)
-    let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+
+    // accessory view
+    let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 16))
+    input.translatesAutoresizingMaskIntoConstraints = false
     input.lineBreakMode = .byClipping
     input.usesSingleLineMode = true
     input.cell?.isScrollable = true
-    panel.accessoryView = input
-    panel.addButton(withTitle: NSLocalizedString("general.ok", comment: "OK"))
-    panel.addButton(withTitle: NSLocalizedString("general.cancel", comment: "Cancel"))
+    if let inputValue = inputValue {
+      input.stringValue = inputValue
+    }
+    let stackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+    stackView.orientation = .vertical
+    stackView.alignment = .centerX
+    stackView.addArrangedSubview(input)
+
+    // buttons
+    let okButton = panel.addButton(withTitle: NSLocalizedString("general.ok", comment: "OK"))
+    let _ = panel.addButton(withTitle: NSLocalizedString("general.cancel", comment: "Cancel"))
     panel.window.initialFirstResponder = input
+
+    // validation
+    var observer: NSObjectProtocol?
+    if let validator = validator {
+      let label = NSTextField(labelWithString: "label")
+      label.textColor = .secondaryLabelColor
+      label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+      stackView.addArrangedSubview(label)
+      stackView.frame = NSRect(x: 0, y: 0, width: 240, height: 42)
+
+      let validateInput = {
+        switch validator(input.stringValue) {
+        case .ok:
+          okButton.isEnabled = true
+          label.stringValue = ""
+        case .valueIsEmpty:
+          okButton.isEnabled = false
+          label.stringValue = NSLocalizedString("input.value_is_empty", comment: "Value is empty.")
+        case .valueAlreadyExists:
+          okButton.isEnabled = false
+          label.stringValue = NSLocalizedString("input.already_exists", comment: "Value already exists.")
+        case .custom(let message):
+          label.stringValue = message
+          okButton.isEnabled = false
+        }
+      }
+      observer = NotificationCenter.default.addObserver(forName: NSControl.textDidChangeNotification, object: input, queue: .main) { _ in
+        validateInput()
+      }
+      validateInput()
+    }
+
+    stackView.translatesAutoresizingMaskIntoConstraints = true
+    panel.accessoryView = stackView
 
     if let sheetWindow = sheetWindow {
       panel.beginSheetModal(for: sheetWindow) { response in
         if response == .alertFirstButtonReturn {
           callback(input.stringValue)
         }
+        if let observer = observer {
+          NotificationCenter.default.removeObserver(observer)
+        }
       }
     } else {
       if panel.runModal() == .alertFirstButtonReturn {
         callback(input.stringValue)
+        if let observer = observer {
+          NotificationCenter.default.removeObserver(observer)
+        }
         return true
       }
     }
@@ -315,7 +377,7 @@ class Utility {
      - callback: A closure accepting the font name.
    */
   static func quickFontPickerWindow(callback: @escaping (String?) -> Void) {
-    guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
+    let appDelegate = AppDelegate.shared
     appDelegate.fontPicker.finishedPicking = callback
     appDelegate.fontPicker.showWindow(self)
   }
@@ -471,20 +533,6 @@ class Utility {
     }
   }
 
-  @available(macOS, deprecated: 10.14, message: "Use the system appearance-based APIs instead.")
-  static func getAppearanceAndMaterial(from theme: Preference.Theme) -> (NSAppearance?, NSVisualEffectView.Material) {
-    switch theme {
-    case .ultraDark:
-      return (NSAppearance(named: .vibrantDark), .ultraDark)
-    case .light:
-      return (NSAppearance(named: .vibrantLight), .light)
-    case .mediumLight:
-      return (NSAppearance(named: .vibrantLight), .mediumLight)
-    default:
-      return (NSAppearance(named: .vibrantDark), .dark)
-    }
-  }
-
   static func getLatestScreenshot(from path: String) -> URL? {
     let folder = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
     guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -635,3 +683,16 @@ func bridgeTransfer<T : AnyObject>(ptr : UnsafeRawPointer) -> T {
   return Unmanaged<T>.fromOpaque(ptr).takeRetainedValue()
 }
 
+enum LoopMode {
+  case off
+  case file
+  case playlist
+
+  func next() -> LoopMode {
+    switch self {
+    case .off:      return .file
+    case .file:     return .playlist
+    default:        return .off
+    }
+  }
+}

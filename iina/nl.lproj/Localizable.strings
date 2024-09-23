@@ -16,6 +16,9 @@
 "general.username" = "Gebruikersnaam";
 "general.password" = "Wachtwoord";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Hoogtepunten";
 "guide.basic_settings" = "Basisinstellingen";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Nightly is not recommended to be used as daily drive. Currently nightly builds do not support auto update. Please manually download newer builds from our <a href=\"https://nightly.iina.io\">nightly website</a>.";
 "initial.debug.desc" = "Debug builds are usually not optimized for performance, so it is not recommended to be used as daily drive. Debug builds do not support auto update.";
 "initial.bug_report" = "Report via <a href=\"https://github.com/iina/iina/issues\">GitHub issues</a>.";
+
+// Inspector Window
+"inspector.error" = "Fout";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Bufferen… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Hardware acceleratie";
 "quicksetting.deinterlace" = "Deinterlace";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Verberg";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Pauzeer";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Ondertiteling versneld met %.2fs";
 "osd.sub_delay.earlier" = "Ondertiteling vertraagd met %.2fs";
 "osd.subtitle_pos" = "Ondertitelingspositie: %.1f";
+"osd.sub_hidden" = "Subtitles Hidden";
+"osd.sub_visible" = "Subtitles Visible";
+"osd.sub_second_delay.nodelay" = "Secondary Subtitle Delay: No Delay";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Secondary Subtitle Delay: %.2fs Earlier";
+"osd.sub_second_hidden" = "Secondary Subtitles Hidden";
+"osd.sub_second_pos" = "Secondary Subtitle Position: %.1f";
+"osd.sub_second_visible" = "Secondary Subtitles Visible";
 "osd.mute" = "Geluid uit";
 "osd.unmute" = "Geluid aan";
 "osd.screenshot" = "Schermafbeelding genomen";
@@ -80,7 +124,8 @@
 "osd.find_online_sub" = "Online naar ondertiteling zoeken…";
 "osd.find_online_sub.source" = "van";
 "osd.sub_not_found" = "Geen ondertiteling gevonden";
-"osd.sub_found" = "%d ondertiteling(en) gevonden. Downloaden…";
+"osd.sub_found" = "%d subtitles found.";
+"osd.sub_downloading" = "Downloading %d subtitles";
 "osd.sub_downloaded" = "Ondertiteling gedownload";
 "osd.sub_saved" = "Ondertiteling opgeslagen";
 "osd.network_error" = "Netwerkfout";
@@ -91,8 +136,9 @@
 "osd.timed_out" = "Timed Out";
 "osd.filter_added" = "Filter toegevoegd: %@";
 "osd.filter_removed" = "Filter verwijderd";
-"osd.file_loop" = "Bestands loop: %@";
-"osd.playlist_loop" = "Afspeellijst Loop: %@";
+"osd.file_loop" = "Loop Single File";
+"osd.playlist_loop" = "Loop Playlist";
+"osd.no_loop" = "Disable Looping";
 
 "preference.title" = "Voorkeuren";
 "preference.general" = "Algemeen";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Geavanceerde instellingen inschakelen";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "volledig";
+"preference.sub_override_level.yes" = "yes";
+
 "menu.volume" = "Volume: %d";
 "menu.volume_muted" = "Volume: %d (Muted)";
 "menu.audio_delay" = "Audiovertraging: %.2fs";
 "menu.sub_delay" = "Ondertitelingvertraging: %.2fs";
+"menu.sub_hide" = "Hide Subtitles";
+"menu.sub_show" = "Show Subtitles";
+"menu.sub_second_hide" = "Hide Secondary Subtitles";
+"menu.sub_second_show" = "Show Secondary Subtitles";
 "menu.fullscreen" = "Schakel schermvullende weergave in";
 "menu.exit_fullscreen" = "Schakel schermvullende weergave uit";
 "menu.pip" = "Schakel Beeld-in-beeld in";
 "menu.exit_pip" = "Schakel Beeld-in-beeld uit";
+"menu.mini_player" = "Enter Music Mode";
+"menu.exit_mini_player" = "Exit Music Mode";
 "menu.pause" = "Pauzeer";
 "menu.resume" = "Hervat";
 "menu.speed" = "Snelheid: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Ondertitelingvertraging + %.1fs";
 "menu.sub_delay_down" = "Ondertitelingingvertraging - %.1fs";
 
-"menu.crop_custom" = "Pas aan...";
+"menu.crop_custom" = "Pas aan…";
 "menu.find_online_sub" = "Find Online Subtitles from %@";
 
+"track.audio" = "Audio";
 "track.none" = "<Geen>";
+"track.sub" = "Ondertiteling";
+"track.video" = "Video";
 
 "subtrack.no_loaded" = "Geen ondertiteling geladen";
 "subtrack.no_external" = "Geen externe ondertiteling gevonden";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Fatale fout: %@ \nDe applicatie zal nu afsluiten.";
 "alert.mpv_error" = "Interne fout: %@ (%@) bij het instellen van optie %@.";
-"alert.sleep" = "Cannot prevent display sleep! (0x%0X8)";
 
 "alert.unsupported_audio" = "Het externe audiobestand wordt niet ondersteund.";
 "alert.unsupported_sub" = "De externe ondertiteling wordt niet ondersteund.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Dupliceer configuratie";
 "alert.config.duplicate.message" = "Voer een naam in voor de gedupliceerde configuratie.";
 "alert.config.empty_name" = "De naam kan niet leeg zijn.";
-"alert.config.name_existing" = "Deze naam bestaat al.";
+"alert.config.name_existing" = "A config with the same name already exists.";
 "alert.config.file_existing.title" = "Dit bestand bestaat al.";
-"alert.config.file_existing.message" = "Dit zou niet moeten gebeuren. Kies OK om te overschrijven, of Annuleer om het bestand in Finder te tonen.";
+"alert.config.file_existing.message" = "A config file with the same filename already exists. Choose OK to show the file in Finder.";
 "alert.config.cannot_create" = "Kan configuratiebestand niet aanmaken.\n%@";
 "alert.config.cannot_write" = "Kan niet naar configuratiebestand schrijven.";
+"alert.config.rename.title" = "Rename Input Configuration";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Fout bij het instellen van filters. Controleer je parameters.";
 "alert.add_filter.title" = "Nieuw filter";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Schermvullende weergave";
 "osc_toolbar.music_mode" = "Schakel over naar muziekmodus";
 "osc_toolbar.sub_track" = "Kies ondertiteling";
+"osc_toolbar.screenshot" = "Take a screenshot";
 
 "mini_player.album_art" = "Wijzig albumhoes";
 "mini_player.loop" = "Herhaal";
@@ -346,27 +408,27 @@
 // Plugin permissions
 
 "permissions.network-request.name" = "Network Request";
-"permissions.network-request.desc" = "This plugin can make requst or upload data to these websites:";
+"permissions.network-request.desc" = "This plugin can make requsts from or upload data to these websites:";
 "permissions.network-request.any_site" = "Any site";
 "permissions.show-osd.name" = "Show OSD";
 "permissions.show-osd.desc" = "This plugin can show OSD (On Screen Display) messages.";
 "permissions.show-alert.name" = "Show Alerts";
 "permissions.show-alert.desc" = "This plugin can show pop-up alerts.";
-"permissions.video-overlay.name" = "Add overlay on videos";
+"permissions.video-overlay.name" = "Add overlays on videos";
 "permissions.video-overlay.desc" = "This plugin can render additional content on the top of the video.";
 "permissions.file-system.name" = "Access the file system";
-"permissions.file-system.desc" = "This plugin can read or write files on your disk, including sensitive information. It can also call other programs or applications that can harm your computer. So be sure to verify the source.";
+"permissions.file-system.desc" = "This plugin can read or write files on your disk, which may include sensitive information. It can also execute other programs or applications that can harm your computer. So be sure to verify the source.";
 
 "plugin.install" = "Install";
 "plugin.installed" = "Installed";
 "plugin.not_installed" = "Not Installed";
 "plugin.local" = "Installed locally";
-"alert.plugin.install_error" = "Error occured during the installation: %@";
+"alert.plugin.install_error" = "Error occurred during the installation: %@";
 "alert.invalid_url" = "The URL is invalid.";
 "plugin.install_error.invalid_url" = "The URL is invalid.";
 "plugin.install_error.file_not_found" = "Cannot find the package file.";
 "plugin.install_error.cannot_download" = "Failed to download the plugin.\n\nOutput:%@\n";
 "plugin.install_error.cannot_unpackage" = "Failed to unpackage the plugin.\n\nOutput:%@\n";
 "plugin.install_error.cannot_load" = "IINA cannot load this plugin. It might be in the wrong format.";
-"plugin.check_for_updates" = "Check for Updates";
+"plugin.check_for_updates" = "Zoek naar updates";
 "plugin.updating" = "Downloading update…";

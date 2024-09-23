@@ -30,7 +30,7 @@
 "cmd.quit-watch-later" = "退出（保存进度）";
 "cmd.screenshot" = "截图";
 "cmd.screenshot-to-file" = "截图至文件";
-"cmd.loadfile" = "打开文件";
+"cmd.loadfile" = "载入文件";
 "cmd.loadlist" = "载入播放列表";
 "cmd.run" = "运行";
 
@@ -52,10 +52,11 @@
 "iina.toggle-flip" = "切换翻转";
 "iina.toggle-mirror" = "切换镜像";
 "iina.save-playlist" = "保存当前播放列表";
+"iina.show-current-file-in-finder" = "在访达中显示当前文件";
 "iina.delete-current-file" = "删除当前文件";
 "iina.delete-current-file-hard" = "直接删除当前文件（不放入废纸篓）";
 "iina.find-online-subs" = "查找在线字幕";
-"iina.save-downloaded-sub" = "保存已下载的字幕";
+"iina.save-downloaded-sub" = "保存已下载字幕";
 
 "yes" = "是";
 "no" = "否";
@@ -100,6 +101,7 @@
 "opt.sub-pos" = "字幕位置";
 "opt.sub-scale" = "字幕缩放";
 "opt.sub-visibility" = "字幕可见";
+"opt.secondary-sub-visibility" = "开启二级字幕";
 "opt.sub-ass-style-override" = "ASS 字幕样式覆盖";
 
 "opt.fullscreen" = "全屏";

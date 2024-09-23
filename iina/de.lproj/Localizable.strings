@@ -16,6 +16,9 @@
 "general.username" = "Benutzername";
 "general.password" = "Passwort";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Highlights";
 "guide.basic_settings" = "Allgemeine Einstellungen";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Nightly Versionen sollten nicht für den täglichen Gebrauch eingesetzt werden. Aktuell unterstützen diese keine Auto Updates. Bitte lade neuere Versionen von <a href=\"https://nightly.iina.io\">Nightly Website</a>.";
 "initial.debug.desc" = "Debug-Builds sind normalerweise nicht auf Leistung optimiert, daher wird es nicht empfohlen diese für den täglichen Gebrauch einzusetzen. Debug-Builds unterstützen keine automatischen Updates.";
 "initial.bug_report" = "Melde via <a href=\"https://github.com/iina/iina/issues\">GitHub Tickets</a>.";
+
+// Inspector Window
+"inspector.error" = "Fehler";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Puffern … %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Hardware Dekodierung";
 "quicksetting.deinterlace" = "Deinterlacing";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Verstecken";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Pausieren";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Untertitelverzögerung: %.2f s später";
 "osd.sub_delay.earlier" = "Untertitelverzögerung: %.2f s früher";
 "osd.subtitle_pos" = "Untertitelposition: %.1f";
+"osd.sub_hidden" = "Subtitles Hidden";
+"osd.sub_visible" = "Subtitles Visible";
+"osd.sub_second_delay.nodelay" = "Secondary Subtitle Delay: No Delay";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Secondary Subtitle Delay: %.2fs Earlier";
+"osd.sub_second_hidden" = "Secondary Subtitles Hidden";
+"osd.sub_second_pos" = "Secondary Subtitle Position: %.1f";
+"osd.sub_second_visible" = "Secondary Subtitles Visible";
 "osd.mute" = "Stumm";
 "osd.unmute" = "Ton ein";
 "osd.screenshot" = "Bildschirmfoto aufgenommen";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Online nach Untertiteln suchen …";
 "osd.find_online_sub.source" = "Quelle:";
 "osd.sub_not_found" = "Keine Untertitel gefunden";
-"osd.sub_found" = "%d Untertitel gefunden. Laden …";
+"osd.sub_found" = "%d subtitles found.";
+"osd.sub_downloading" = "Downloading %d subtitles";
 "osd.sub_downloaded" = "Untertitel geladen";
 "osd.sub_saved" = "Untertitel gesichert";
 "osd.network_error" = "Netzwerkfehler";
 "osd.file_error" = "Lesefehler";
 "osd.cannot_login" = "Anmeldung fehlgeschlagen";
 "osd.canceled" = "Abgebrochen";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "Keine Verbindung möglich";
+"osd.timed_out" = "Zeitüberschreitung";
 "osd.filter_added" = "Filter „%@“ hinzugefügt";
 "osd.filter_removed" = "Filter gelöscht";
-"osd.file_loop" = "Datei wiederholen: „%@“";
-"osd.playlist_loop" = "Wiedergabeliste wiederholen: „%@“";
+"osd.file_loop" = "Wiederhole einzelne Datei";
+"osd.playlist_loop" = "Wiedergabeliste wiederholen";
+"osd.no_loop" = "Wiederholen deaktivieren";
 
 "preference.title" = "Einstellungen";
 "preference.general" = "Allgemein";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Erweiterte Einstellungen";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "strip";
+"preference.sub_override_level.yes" = "yes";
+
 "menu.volume" = "Lautstärke: %d";
 "menu.volume_muted" = "Lautstärke: %d (Stumm)";
 "menu.audio_delay" = "Audioverzögerung: %.2f s";
 "menu.sub_delay" = "Untertitelverzögerung: %.2f s";
+"menu.sub_hide" = "Hide Subtitles";
+"menu.sub_show" = "Show Subtitles";
+"menu.sub_second_hide" = "Hide Secondary Subtitles";
+"menu.sub_second_show" = "Show Secondary Subtitles";
 "menu.fullscreen" = "Vollbildmodus";
 "menu.exit_fullscreen" = "Vollbildmodus beenden";
 "menu.pip" = "Bild-in-Bild öffnen";
 "menu.exit_pip" = "Bild-in-Bild schließen";
+"menu.mini_player" = "Musikmodus aktivieren";
+"menu.exit_mini_player" = "Musikmodus beenden";
 "menu.pause" = "Pausieren";
 "menu.resume" = "Wiedergabe";
 "menu.speed" = "Geschwindigkeit: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Untertitelverzögerung + %.1f s";
 "menu.sub_delay_down" = "Untertitelverzögerung − %.1f s";
 
-"menu.crop_custom" = "Benutzerdefiniert …";
+"menu.crop_custom" = "Eigene …";
 "menu.find_online_sub" = "Online-Untertitel von „%@“ finden";
 
+"track.audio" = "Audio";
 "track.none" = "Keine";
+"track.sub" = "Untertitel";
+"track.video" = "Video";
 
 "subtrack.no_loaded" = "Keine Untertitel geladen";
 "subtrack.no_external" = "Keine externen Untertitel gefunden";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Schwerwiegender Fehler: „%@“ \nProgramm wird beendet.";
 "alert.mpv_error" = "Interner Fehler „%@“ (%@) beim Setzen der Einstellung „%@“.";
-"alert.sleep" = "Der Ruhezustand des Bildschirms konnte nicht verhindert werden! (0x%0X8)";
 
 "alert.unsupported_audio" = "Externe Audiodatei nicht unterstützt.";
 "alert.unsupported_sub" = "Externe Untertiteldatei nicht untersützt.";
@@ -175,7 +234,7 @@
 "alert.error_open" = "Datei oder Stream konnte nicht geöffnet werden.";
 "alert.error_finding_file" = "Die Datei „%@“ konnte nicht gefunden werden.";
 "alert.error_loading_script" = "Das Skript „%@“ konnte nicht geladen werden.";
-"alert.error_saving_file" = "Fehler beim Sichern von „%@“: %@";
+"alert.error_saving_file" = "Fehler beim Sichern von %@: %@";
 "alert.error_deleting_file" = "Datei konnte nicht gelöscht werden.";
 
 "alert.config.new.title" = "Neue Eingabekonfiguration";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Konfiguration duplizieren";
 "alert.config.duplicate.message" = "Bitte gib einen Namen für die duplizierte Konfiguration ein.";
 "alert.config.empty_name" = "Der Name darf nicht leer sein.";
-"alert.config.name_existing" = "Der Name existiert bereits.";
+"alert.config.name_existing" = "A config with the same name already exists.";
 "alert.config.file_existing.title" = "Die Datei existiert bereits.";
-"alert.config.file_existing.message" = "Das sollte nicht passieren. Wähle OK zum überschreiben oder Abbrechen, um die Datei im Finder anzuzeigen.";
+"alert.config.file_existing.message" = "A config file with the same filename already exists. Choose OK to show the file in Finder.";
 "alert.config.cannot_create" = "Konfigurationsdatei konnte nicht erstellt werden.\n%@";
 "alert.config.cannot_write" = "Konfigurationsdatei nicht beschreibbar.";
+"alert.config.rename.title" = "Rename Input Configuration";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Fehler beim Setzen der Filter. Bitte überprüfe die Parameter.";
 "alert.add_filter.title" = "Neuer Filter";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Vollbild ein-/ausschalten";
 "osc_toolbar.music_mode" = "Musikmodus";
 "osc_toolbar.sub_track" = "Untertitelspur auswählen";
+"osc_toolbar.screenshot" = "Bildschirmfoto erstellen";
 
 "mini_player.album_art" = "Albumcover ein-/ausblenden";
 "mini_player.loop" = "Wiederholen";
@@ -361,7 +423,7 @@
 "plugin.installed" = "Installiert";
 "plugin.not_installed" = "Nicht installiert";
 "plugin.local" = "Lokal installiert";
-"alert.plugin.install_error" = "Während der Installation ist ein Fehler aufgetreten: „@%“.";
+"alert.plugin.install_error" = "Während der Installation ist ein Fehler aufgetreten: „%@“";
 "alert.invalid_url" = "Die Adresse ist ungültig.";
 "plugin.install_error.invalid_url" = "Die Adresse ist ungültig.";
 "plugin.install_error.file_not_found" = "Die Paketdatei wurde nicht gefunden.";

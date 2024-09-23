@@ -24,31 +24,26 @@ struct InfoDictionary {
     return String(buildCommit.prefix(7))
   }
 
-  var buildDate: String? {
+  var buildDate: Date? {
     let dateParser: (String) -> Date?
-    if #available(macOS 10.12, *) {
-      let formatter = ISO8601DateFormatter()
-      dateParser = formatter.date(from:)
-    } else {
-      let formatter = DateFormatter()
-      formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-      dateParser = formatter.date(from:)
-    }
+    let formatter = ISO8601DateFormatter()
+    dateParser = formatter.date(from:)
     guard let date = dictionary["\(buildKeyPrefix).date"] as? String,
           let dateObj = dateParser(date) else {
       return nil
     }
-    // Use a localized date for the build date.
-    let toString = DateFormatter()
-    toString.dateStyle = .medium
-    toString.timeStyle = .medium
-    return toString.string(from: dateObj)
+    return dateObj
   }
 
   private var buildKeyPrefix: String {
     // As recommended by Apple, IINA's custom Info.plist keys start with the bundle identifier.
     bundleIdentifier + ".build"
   }
+
+  /// The version of the macOS SDK the application was built with.
+  ///
+  /// This is the value of the Xcode `SDK_VERSION` build setting.
+  var buildSDK: String? { dictionary["\(buildKeyPrefix).sdk"] as? String }
 
   /// The type of build used to generate this IINA executable.
   ///
@@ -63,6 +58,33 @@ struct InfoDictionary {
   /// IINA's convention is that if there is no indication of the type of build then it is a release build. Therefore this property is `nil` if
   /// this executable was built using the release configuration. Otherwise this property contains a string suitable for display to the user.
   var buildTypeIdentifier: String? { buildType == .release ? nil : buildType.description }
+
+  /// The version of Xcode the application was built with.
+  ///
+  /// For the SDK Xcode provides a setting with the version in human readable form. Unfortunately that is not the case for the Xcode
+  /// version, so the `XCODE_VERSION_ACTUAL` build setting is used which provides the version number in a four character format
+  /// that must be parsed and turned into a human readable form.
+  var buildXcode: String? {
+    guard let asFourChars = dictionary["\(buildKeyPrefix).xcode"] as? String else {
+      return nil
+    }
+    guard asFourChars.count == 4 else { return asFourChars }
+    let major: String.SubSequence
+    if asFourChars.first == "0" {
+      let index = asFourChars.index(asFourChars.startIndex, offsetBy: 1)
+      major = asFourChars[index...index]
+    } else {
+      major = asFourChars.prefix(2)
+    }
+    let minor: String.SubSequence
+    if asFourChars.last == "0" {
+      let index = asFourChars.index(asFourChars.endIndex, offsetBy: -2)
+      minor = asFourChars[index...index]
+    } else {
+      minor = asFourChars.suffix(2)
+    }
+    return "\(major).\(minor)"
+  }
 
   var bundleIdentifier: String { dictionary["CFBundleIdentifier"] as! String }
 

@@ -16,6 +16,9 @@
 "general.username" = "사용자";
 "general.password" = "암호";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "새로 추가된 기능";
 "guide.basic_settings" = "일반 설정";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "나이틀리 빌드는 일반적으로 사용하지 않는 것이 좋습니다. 나이틀리 빌드는 자동 업데이트를 지원하지 않습니다. <a href=\"https://nightly.iina.io\">나이틀리 웹사이트</a>에서 최신 빌드를 수동으로 다운로드하세요.";
 "initial.debug.desc" = "디버그 빌드는 성능에 최적화되어 있지 않으므로, 일반적으로 사용하지 않는 것이 좋습니다. 디버그 빌드는 자동 업데이트를 지원하지 않습니다.";
 "initial.bug_report" = "<a href=\"https://github.com/iina/iina/issues\">GitHub 이슈</a>를 통해 오류를 보고해주십시오.";
+
+// Inspector Window
+"inspector.error" = "오류";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "버퍼링… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "하드웨어 디코딩";
 "quicksetting.deinterlace" = "디인터레이스";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "숨기기";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "일시 정지됨";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "자막 지연: %.2f초 느리게";
 "osd.sub_delay.earlier" = "자막 지연: %.2f초 빠르게";
 "osd.subtitle_pos" = "자막 위치: %.1f";
+"osd.sub_hidden" = "자막 숨김";
+"osd.sub_visible" = "자막 보임";
+"osd.sub_second_delay.nodelay" = "두번째 자막 지연: 없음";
+"osd.sub_second_delay.later" = "두번째 자막 지연: %.2f초 느리게";
+"osd.sub_second_delay.earlier" = "두번째 자막 지연: %.2f초 빠르게";
+"osd.sub_second_hidden" = "두번째 자막 숨김";
+"osd.sub_second_pos" = "두번째 자막 위치: %.1f";
+"osd.sub_second_visible" = "두번째 자막 보임";
 "osd.mute" = "소리 끔";
 "osd.unmute" = "음소거 해제";
 "osd.screenshot" = "스크린샷 저장됨";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "인터넷에서 자막을 찾는 중…";
 "osd.find_online_sub.source" = "사이트에서 찾는 중";
 "osd.sub_not_found" = "자막을 찾지 못했습니다";
-"osd.sub_found" = "%d 자막을 찾았습니다. 다운로드하는 중…";
+"osd.sub_found" = "%d개의 자막 찾음";
+"osd.sub_downloading" = "%d 자막 다운로드 중";
 "osd.sub_downloaded" = "자막 다운로드됨";
 "osd.sub_saved" = "자막 저장됨";
 "osd.network_error" = "네트워크 오류";
 "osd.file_error" = "파일 읽기 오류";
 "osd.cannot_login" = "로그인할 수 없음";
 "osd.canceled" = "취소됨";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "연결할 수 없음";
+"osd.timed_out" = "시간 초과됨";
 "osd.filter_added" = "필터 추가됨: %@";
 "osd.filter_removed" = "필터 제거됨";
-"osd.file_loop" = "파일 반복: %@";
-"osd.playlist_loop" = "재생목록 반복: %@";
+"osd.file_loop" = "단일 파일 반복 재생";
+"osd.playlist_loop" = "재생목록 반복 재생";
+"osd.no_loop" = "반복 재생하지 않음";
 
 "preference.title" = "환경설정";
 "preference.general" = "일반";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "고급 설정 사용";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "strip";
+"preference.sub_override_level.yes" = "yes";
+
 "menu.volume" = "음량: %d";
 "menu.volume_muted" = "음량: %d (음소거 됨)";
 "menu.audio_delay" = "오디오 지연: %.2f초";
 "menu.sub_delay" = "자막 지연: %.2f초";
+"menu.sub_hide" = "자막 숨기기";
+"menu.sub_show" = "자막 보이기";
+"menu.sub_second_hide" = "두번째 자막 숨기기";
+"menu.sub_second_show" = "두번째 자막 보이기";
 "menu.fullscreen" = "전체 화면";
 "menu.exit_fullscreen" = "전체 화면에서 나가기";
 "menu.pip" = "화면 속 화면";
 "menu.exit_pip" = "화면 속 화면에서 나가기";
+"menu.mini_player" = "음악 모드 전환";
+"menu.exit_mini_player" = "음악 모드 나가기";
 "menu.pause" = "일시 정지";
 "menu.resume" = "재생";
 "menu.speed" = "재생속도: %.2fx";
@@ -151,7 +208,10 @@
 "menu.crop_custom" = "사용자 설정…";
 "menu.find_online_sub" = "%@에서 온라인 자막 찾기";
 
+"track.audio" = "오디오";
 "track.none" = "<없음>";
+"track.sub" = "자막";
+"track.video" = "비디오";
 
 "subtrack.no_loaded" = "자막을 불러올 수 없습니다";
 "subtrack.no_external" = "외부 자막을 찾을 수 없습니다";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "심각한 오류: %@ \n프로그램이 지금 종료됩니다.";
 "alert.mpv_error" = "%@ (%@)오류가 사용자 지정 옵션 %@을 설정하는 도중 발생했습니다.";
-"alert.sleep" = "화면 잠자기 설정을 끌 수 없습니다! (0x%0X8)";
 
 "alert.unsupported_audio" = "지원되지 않는 외부 오디오 파일입니다.";
 "alert.unsupported_sub" = "지원되지 않는 자막 형식입니다.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "설정 파일 복제";
 "alert.config.duplicate.message" = "새로 만들 설정 파일의 이름을 입력하십시오.";
 "alert.config.empty_name" = "파일 이름을 지정하십시오.";
-"alert.config.name_existing" = "같은 이름의 파일이 이미 있습니다.";
+"alert.config.name_existing" = "같은 이름의 설정이 이미 존재합니다.";
 "alert.config.file_existing.title" = "같은 이름의 설정 파일이 이미 있습니다.";
-"alert.config.file_existing.message" = "파일을 덮어 쓰려면 승인을, 파인더에서 파일을 확인하려면 취소를 누르십시오.";
+"alert.config.file_existing.message" = "같은 이름의 설정 파일이 이미 존재합니다. Finder에서 파일을 보려면 OK를 선택하세요.";
 "alert.config.cannot_create" = "설정 파일을 만들 수 없습니다!\n%@";
 "alert.config.cannot_write" = "설정 파일에 저장할 수 없습니다!";
+"alert.config.rename.title" = "설정 파일 이름 변경하기";
+"alert.config.rename.message" = "새 설정 파일의 이름을 입력해주세요.";
 
 "alert.filter.incorrect" = "필터를 설정하는 도중 오류가 발생했습니다. 매개변수 형식을 확인하십시오.";
 "alert.add_filter.title" = "새 필터";
@@ -285,7 +346,7 @@
 "pl_menu.delete_multi" = "선택한 파일을 휴지통에 버리기";
 "pl_menu.delete_after_play" = "재생 후 휴지통에 버리기";
 "pl_menu.delete_after_play_multi" = "선택항목 재생 후 휴지통에 버리기";
-"pl_menu.show_in_finder" = "파인더에서 보기";
+"pl_menu.show_in_finder" = "Finder에서 보기";
 "pl_menu.add_file" = "파일 추가…";
 "pl_menu.add_url" = "URL 추가…";
 "pl_menu.clear_playlist" = "재생목록 지움";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "전체 화면 전환/복귀";
 "osc_toolbar.music_mode" = "음악 모드 전환";
 "osc_toolbar.sub_track" = "자막 선택";
+"osc_toolbar.screenshot" = "스크린샷 찍기";
 
 "mini_player.album_art" = "앨범 아트 켜기/끄기";
 "mini_player.loop" = "반복";

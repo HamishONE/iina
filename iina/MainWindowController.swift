@@ -148,6 +148,7 @@ class MainWindowController: PlayerWindowController {
   var isPausedPriorToInteractiveMode: Bool = false
 
   var lastMagnification: CGFloat = 0.0
+  var frameWhenStartedPinching = NSRect()
 
   /** Views that will show/hide when cursor moving in/out the window. */
   var fadeableViews: [NSView] = []
@@ -178,8 +179,6 @@ class MainWindowController: PlayerWindowController {
   /** Whether current osd needs user interaction to be dismissed */
   var isShowingPersistentOSD = false
   var osdContext: Any?
-
-  private var isClosing = false
 
   // MARK: - Enums
 
@@ -243,7 +242,7 @@ class MainWindowController: PlayerWindowController {
   var fsState: FullScreenState = .windowed {
     didSet {
       // Must not access mpv while it is asynchronously processing stop and quit commands.
-      guard !isClosing else { return }
+      guard player.info.state.active else { return }
       switch fsState {
       case .fullscreen: player.mpv.setFlag(MPVOption.Window.fullscreen, true)
       case .animating:  break
@@ -262,6 +261,8 @@ class MainWindowController: PlayerWindowController {
   var animationState: UIAnimationState = .shown
   var osdAnimationState: UIAnimationState = .hidden
   var sidebarAnimationState: UIAnimationState = .hidden
+
+  private var osdLastMessage: OSDMessage? = nil
 
   // Sidebar
 
@@ -484,13 +485,10 @@ class MainWindowController: PlayerWindowController {
 
   lazy var _pip: PIPViewController = {
     let pip = VideoPIPViewController()
-    if #available(macOS 10.12, *) {
-      pip.delegate = self
-    }
+    pip.delegate = self
     return pip
   }()
   
-  @available(macOS 10.12, *)
   var pip: PIPViewController {
     _pip
   }
@@ -535,6 +533,8 @@ class MainWindowController: PlayerWindowController {
     fragControlView.addView(fragControlViewLeftView, in: .center)
     fragControlView.addView(fragControlViewMiddleView, in: .center)
     fragControlView.addView(fragControlViewRightView, in: .center)
+    // Video controllers and timeline indicators should not flip in a right-to-left language.
+    fragControlView.userInterfaceLayoutDirection = .leftToRight
     setupOnScreenController(withPosition: oscPosition)
     let buttons = (Preference.array(for: .controlBarToolbarButtons) as? [Int] ?? []).compactMap(Preference.ToolBarButton.init(rawValue:))
     setupOSCToolbarButtons(buttons)
@@ -560,7 +560,7 @@ class MainWindowController: PlayerWindowController {
     // workaround another bug in Ventura where an external monitor goes black could not be
     // reproduced (issue #4015). The workaround adds a tiny subview with such a low alpha level it
     // is invisible to the human eye. This workaround may not be effective in all cases.
-    if #available(macOS 13, *) {
+    if #available(macOS 13, *), Preference.bool(for: .enableHdrWorkaround) {
       let view = NSView(frame: NSRect(origin: .zero, size: NSSize(width: 0.1, height: 0.1)))
       view.wantsLayer = true
       view.layer?.backgroundColor = NSColor.black.cgColor
@@ -583,9 +583,7 @@ class MainWindowController: PlayerWindowController {
 
     // other initialization
     osdAccessoryProgress.usesThreadedAnimation = false
-    if #available(macOS 10.14, *) {
-      titleBarBottomBorder.fillColor = NSColor(named: .titleBarBorder)!
-    }
+    titleBarBottomBorder.fillColor = NSColor(named: .titleBarBorder)!
     cachedScreenCount = NSScreen.screens.count
     [titleBarView, osdVisualEffectView, controlBarBottom, controlBarFloating, sideBarView, osdVisualEffectView, pipOverlayView].forEach {
       $0?.state = .active
@@ -667,30 +665,6 @@ class MainWindowController: PlayerWindowController {
     }
   }
 
-  /** Set material for OSC and title bar */
-  override internal func setMaterial(_ theme: Preference.Theme?) {
-    if #available(macOS 10.14, *) {
-      super.setMaterial(theme)
-      return
-    }
-    guard let window = window, let theme = theme else { return }
-
-    let (appearance, material) = Utility.getAppearanceAndMaterial(from: theme)
-    let isDarkTheme = appearance?.isDark ?? true
-    (playSlider.cell as? PlaySliderCell)?.isInDarkTheme = isDarkTheme
-
-    [titleBarView, controlBarFloating, controlBarBottom, osdVisualEffectView, pipOverlayView, additionalInfoView, bufferIndicatorView].forEach {
-      $0?.material = material
-      $0?.appearance = appearance
-    }
-
-    sideBarView.material = .dark
-    sideBarView.appearance = NSAppearance(named: .vibrantDark)
-
-    window.appearance = appearance
-  }
-
-
   private func addVideoViewToWindow() {
     guard let cv = window?.contentView else { return }
     cv.addSubview(videoView, positioned: .below, relativeTo: nil)
@@ -704,22 +678,11 @@ class MainWindowController: PlayerWindowController {
 
   private func setupOSCToolbarButtons(_ buttons: [Preference.ToolBarButton]) {
     var buttons = buttons
-    if #available(macOS 10.12.2, *) {} else {
-      buttons = buttons.filter { $0 != .pip }
-    }
     fragToolbarView.views.forEach { fragToolbarView.removeView($0) }
     for buttonType in buttons {
       let button = NSButton()
-      button.bezelStyle = .regularSquare
-      button.isBordered = false
-      button.image = buttonType.image()
+      OSCToolbarButton.setStyle(of: button, buttonType: buttonType, reducedWidth: buttons.count > 4)
       button.action = #selector(self.toolBarButtonAction(_:))
-      button.tag = buttonType.rawValue
-      button.translatesAutoresizingMaskIntoConstraints = false
-      button.refusesFirstResponder = true
-      button.toolTip = buttonType.description()
-      let buttonWidth = buttons.count == 5 ? "20" : "24"
-      Utility.quickConstraints(["H:[btn(\(buttonWidth))]", "V:[btn(24)]"], ["btn": button])
       fragToolbarView.addView(button, in: .trailing)
     }
   }
@@ -855,6 +818,20 @@ class MainWindowController: PlayerWindowController {
 
   // MARK: - Mouse / Trackpad events
 
+  override func keyDown(with event: NSEvent) {
+    if isShowingPersistentOSD {
+      let keyCode = KeyCodeHelper.mpvKeyCode(from: event)
+      let normalizedKeyCode = KeyCodeHelper.normalizeMpv(keyCode)
+
+      if normalizedKeyCode == "ESC", osdStackView.performKeyEquivalent(with: event) {
+        log("ESC key was handled by OSD", level: .verbose)
+        return
+      }
+    }
+    
+    super.keyDown(with: event)
+  }
+
   @discardableResult
   override func handleKeyBinding(_ keyBinding: KeyMapping) -> Bool {
     let success = super.handleKeyBinding(keyBinding)
@@ -883,13 +860,13 @@ class MainWindowController: PlayerWindowController {
   /// This erroneous behavior has been reported to Apple as: "Regression in NSCursor.setHiddenUntilMouseMoves"
   /// Feedback number FB11963121
   private func workaroundCursorDefect() {
-    guard #available(macOS 11, *) else { return }
+    guard #available(macOS 11, *), animationState == .hidden else { return }
     NSCursor.setHiddenUntilMouseMoves(true)
   }
 
   override func mouseDown(with event: NSEvent) {
     if Logger.enabled && Logger.Level.preferred >= .verbose {
-      Logger.log("MainWindow mouseDown @ \(event.locationInWindow)", level: .verbose, subsystem: player.subsystem)
+      log("MainWindow mouseDown @ \(event.locationInWindow)", level: .verbose)
     }
     workaroundCursorDefect()
     // do nothing if it's related to floating OSC
@@ -900,7 +877,9 @@ class MainWindowController: PlayerWindowController {
     // playlist resizing
     if sideBarStatus == .playlist {
       let sf = sideBarView.frame
-      if NSPointInRect(mousePosRelatedToWindow!, NSMakeRect(sf.origin.x - 4, sf.origin.y, 4, sf.height)) {
+      let originX = videoView.userInterfaceLayoutDirection == .rightToLeft ?
+          sf.width + 4 : sf.origin.x - 4
+      if NSPointInRect(mousePosRelatedToWindow!, NSMakeRect(originX, sf.origin.y, 4, sf.height)) {
         isResizingSidebar = true
         shouldCallSuper = false
       }
@@ -914,7 +893,8 @@ class MainWindowController: PlayerWindowController {
     if isResizingSidebar {
       // resize sidebar
       let currentLocation = event.locationInWindow
-      let newWidth = window!.frame.width - currentLocation.x - 2
+      let newWidth = videoView.userInterfaceLayoutDirection == .rightToLeft ?
+          currentLocation.x - 2 : window!.frame.width - currentLocation.x - 2
       sideBarWidthConstraint.constant = newWidth.clamped(to: PlaylistMinWidth...PlaylistMaxWidth)
     } else if !fsState.isFullscreen {
       guard !controlBarFloating.isDragging else { return }
@@ -929,7 +909,7 @@ class MainWindowController: PlayerWindowController {
             return
           }
           if Logger.enabled && Logger.Level.preferred >= .verbose {
-            Logger.log("MainWindow mouseDrag: minimum dragging distance was met", level: .verbose, subsystem: player.subsystem)
+            log("MainWindow mouseDrag: minimum dragging distance was met", level: .verbose)
           }
           isDragging = true
         }
@@ -941,8 +921,8 @@ class MainWindowController: PlayerWindowController {
 
   override func mouseUp(with event: NSEvent) {
     if Logger.enabled && Logger.Level.preferred >= .verbose {
-      Logger.log("MainWindow mouseUp @ \(event.locationInWindow), isDragging: \(isDragging), isResizingSidebar: \(isResizingSidebar), clickCount: \(event.clickCount)",
-                 level: .verbose, subsystem: player.subsystem)
+      log("MainWindow mouseUp @ \(event.locationInWindow), isDragging: \(isDragging), isResizingSidebar: \(isResizingSidebar), clickCount: \(event.clickCount)",
+                 level: .verbose)
     }
     workaroundCursorDefect()
     mousePosRelatedToWindow = nil
@@ -1008,11 +988,9 @@ class MainWindowController: PlayerWindowController {
     case .fullscreen:
       toggleWindowFullScreen()
     case .hideOSC:
-      hideUI()
+      hideUIAndCursor()
     case .togglePIP:
-      if #available(macOS 10.12, *) {
-        menuTogglePIP(.dummy)
-      }
+      menuTogglePIP(.dummy)
     default:
       break
     }
@@ -1039,7 +1017,7 @@ class MainWindowController: PlayerWindowController {
   override func mouseEntered(with event: NSEvent) {
     guard !isInInteractiveMode else { return }
     guard let obj = event.trackingArea?.userInfo?["obj"] as? Int else {
-      Logger.log("No data for tracking area", level: .warning)
+      log("No data for tracking area", level: .warning)
       return
     }
     mouseExitEnterCount += 1
@@ -1056,15 +1034,14 @@ class MainWindowController: PlayerWindowController {
         timePreviewWhenSeek.isHidden = false
         thumbnailPeekView.isHidden = !player.info.thumbnailsReady
       }
-      let mousePos = playSlider.convert(event.locationInWindow, from: nil)
-      updateTimeLabel(mousePos.x, originalPos: event.locationInWindow)
+      refreshSeekTimeAndThumbnail(from: event)
     }
   }
 
   override func mouseExited(with event: NSEvent) {
     guard !isInInteractiveMode else { return }
     guard let obj = event.trackingArea?.userInfo?["obj"] as? Int else {
-      Logger.log("No data for tracking area", level: .warning)
+      log("No data for tracking area", level: .warning)
       return
     }
     mouseExitEnterCount += 1
@@ -1078,18 +1055,15 @@ class MainWindowController: PlayerWindowController {
       // slider
       isMouseInSlider = false
       timePreviewWhenSeek.isHidden = true
-      let mousePos = playSlider.convert(event.locationInWindow, from: nil)
-      updateTimeLabel(mousePos.x, originalPos: event.locationInWindow)
+      refreshSeekTimeAndThumbnail(from: event)
       thumbnailPeekView.isHidden = true
     }
   }
 
   override func mouseMoved(with event: NSEvent) {
     guard !isInInteractiveMode else { return }
-    let mousePos = playSlider.convert(event.locationInWindow, from: nil)
-    if isMouseInSlider {
-      updateTimeLabel(mousePos.x, originalPos: event.locationInWindow)
-    }
+
+    refreshSeekTimeAndThumbnail(from: event)
     if isMouseInWindow {
       showUI()
     }
@@ -1124,6 +1098,8 @@ class MainWindowController: PlayerWindowController {
       if recognizer.state == .began {
         // began
         lastMagnification = recognizer.magnification
+        videoView.videoLayer.isAsynchronous = true
+        frameWhenStartedPinching = window.frame
       } else if recognizer.state == .changed {
         // changed
         let offset = recognizer.magnification - lastMagnification + 1.0;
@@ -1133,12 +1109,13 @@ class MainWindowController: PlayerWindowController {
         //Check against max & min threshold
         if newHeight < screenFrame.height && newHeight > minSize.height && newWidth > minSize.width {
           let newSize = NSSize(width: newWidth, height: newHeight);
-          window.setFrame(window.frame.centeredResize(to: newSize), display: true)
+          window.setFrame(frameWhenStartedPinching.centeredResize(to: newSize), display: true)
         }
 
         lastMagnification = recognizer.magnification
       } else if recognizer.state == .ended {
         updateWindowParametersForMPV()
+        videoView.videoLayer.isAsynchronous = false
       }
     }
   }
@@ -1146,7 +1123,6 @@ class MainWindowController: PlayerWindowController {
   // MARK: - Window delegate: Open / Close
 
   func windowWillOpen() {
-    isClosing = false
     // Must workaround an AppKit defect in some versions of macOS. This defect is known to exist in
     // Catalina and Big Sur. The problem was not reproducible in early versions of Monterey. It
     // reappeared in Ventura. The status of other versions of macOS is unknown, however the
@@ -1163,10 +1139,10 @@ class MainWindowController: PlayerWindowController {
     window!.title = "Window"
 
     // As there have been issues in this area, log details about the screen selection process.
-    NSScreen.log("window!.screen", window!.screen)
-    NSScreen.log("NSScreen.main", NSScreen.main)
+    NSScreen.log("window!.screen", window!.screen, subsystem: subsystem)
+    NSScreen.log("NSScreen.main", NSScreen.main, subsystem: subsystem)
     NSScreen.screens.enumerated().forEach { screen in
-      NSScreen.log("NSScreen.screens[\(screen.offset)]" , screen.element)
+      NSScreen.log("NSScreen.screens[\(screen.offset)]" , screen.element, subsystem: subsystem)
     }
 
     var screen = window!.selectDefaultScreen()
@@ -1175,16 +1151,19 @@ class MainWindowController: PlayerWindowController {
       let rect = NSRectFromString(rectString)
       if let lastScreen = NSScreen.screens.first(where: { NSPointInRect(rect.origin, $0.visibleFrame) }) {
         screen = lastScreen
-        NSScreen.log("MainWindowLastPosition \(rect.origin) matched", screen)
+        NSScreen.log("MainWindowLastPosition \(rect.origin) matched", screen, subsystem: subsystem)
       }
     }
 
     if shouldApplyInitialWindowSize, let wfg = windowFrameFromGeometry(newSize: AppData.sizeWhenNoVideo, screen: screen) {
-      window!.setFrame(wfg, display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+      window!.setFrame(wfg, display: true, animate: !Preference.bool(for: PK.disableAnimations))
     } else {
-      window!.setFrame(AppData.sizeWhenNoVideo.centeredRect(in: screen.visibleFrame), display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+      window!.setFrame(AppData.sizeWhenNoVideo.centeredRect(in: screen.visibleFrame), display: true,
+                       animate: !Preference.bool(for: PK.disableAnimations))
     }
 
+    // Draw black screen before playing a video. This is needed due to window reuse. Displaying a
+    // frame from a previously played video would violate good privacy practices.
     videoView.videoLayer.draw(forced: true)
   }
 
@@ -1229,13 +1208,10 @@ class MainWindowController: PlayerWindowController {
   }
 
   func windowWillClose(_ notification: Notification) {
-    isClosing = true
     shouldApplyInitialWindowSize = true
     // Close PIP
     if pipStatus == .inPIP {
-      if #available(macOS 10.12, *) {
-        exitPIP()
-      }
+      exitPIP()
     }
     // stop playing
     if case .fullscreen(legacy: true, priorWindowedFrame: _) = fsState {
@@ -1264,7 +1240,7 @@ class MainWindowController: PlayerWindowController {
   func window(_ window: NSWindow, startCustomAnimationToEnterFullScreenOn screen: NSScreen, withDuration duration: TimeInterval) {
     NSAnimationContext.runAnimationGroup({ context in
       context.duration = duration
-      window.animator().setFrame(screen.frame, display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+      window.animator().setFrame(screen.frame, display: true, animate: !Preference.bool(for: PK.disableAnimations))
     }, completionHandler: nil)
 
   }
@@ -1277,7 +1253,7 @@ class MainWindowController: PlayerWindowController {
 
     NSAnimationContext.runAnimationGroup({ context in
       context.duration = duration
-      window.animator().setFrame(priorWindowedFrame, display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+      window.animator().setFrame(priorWindowedFrame, display: true, animate: !Preference.bool(for: PK.disableAnimations))
     }, completionHandler: nil)
 
     NSMenu.setMenuBarVisible(true)
@@ -1293,14 +1269,7 @@ class MainWindowController: PlayerWindowController {
 
     // Set the appearance to match the theme so the titlebar matches the theme
     let iinaTheme = Preference.enum(for: .themeMaterial) as Preference.Theme
-    if #available(macOS 10.14, *) {
-      window?.appearance = NSAppearance(iinaTheme: iinaTheme)
-    } else {
-      switch(iinaTheme) {
-      case .dark, .ultraDark: window!.appearance = NSAppearance(named: .vibrantDark)
-      default: window!.appearance = NSAppearance(named: .vibrantLight)
-      }
-    }
+    window?.appearance = NSAppearance(iinaTheme: iinaTheme)
 
     // show titlebar
     if oscPosition == .top {
@@ -1348,7 +1317,7 @@ class MainWindowController: PlayerWindowController {
       fadeableViews.append(additionalInfoView)
     }
 
-    if player.info.isPaused {
+    if player.info.state == .paused {
       if Preference.bool(for: .playWhenEnteringFullScreen) {
         player.resume()
       } else {
@@ -1359,18 +1328,16 @@ class MainWindowController: PlayerWindowController {
       }
     }
 
-    if #available(macOS 10.12.2, *) {
-      player.touchBarSupport.toggleTouchBarEsc(enteringFullScr: true)
-    }
+    player.touchBarSupport.toggleTouchBarEsc(enteringFullScr: true)
 
     updateWindowParametersForMPV()
 
     // Exit PIP if necessary
-    if pipStatus == .inPIP,
-      #available(macOS 10.12, *) {
+    if pipStatus == .inPIP {
       exitPIP()
     }
     
+    updateAdditionalInfo()
     player.events.emit(.windowFullscreenChanged, data: true)
   }
 
@@ -1406,13 +1373,13 @@ class MainWindowController: PlayerWindowController {
     // operation is processed asynchronously by mpv. If the window is being closed due to IINA
     // quitting then mpv could be in the process of shutting down. Must not access mpv while it is
     // asynchronously processing stop and quit commands.
-    guard !isClosing else { return }
+    guard player.info.state.active else { return }
     videoView.videoLayer.suspend()
     player.mpv.setFlag(MPVOption.Window.keepaspect, false)
   }
 
   func windowDidExitFullScreen(_ notification: Notification) {
-    if AccessibilityPreferences.motionReductionEnabled {
+    if Preference.bool(for: PK.disableAnimations) {
       // When animation is not used exiting full screen does not restore the previous size of the
       // window. Restore it now.
       window!.setFrame(fsState.priorWindowedFrame!, display: true, animate: false)
@@ -1428,22 +1395,20 @@ class MainWindowController: PlayerWindowController {
       removeBlackWindow()
     }
 
-    if player.info.isPaused {
+    if player.info.state == .paused {
       // When playback is paused the display link is stopped in order to avoid wasting energy on
       // needless processing. It must be running while transitioning from full screen mode. Now that
       // the transition has completed it can be stopped.
       videoView.displayIdle()
     }
 
-    if #available(macOS 10.12.2, *) {
-      player.touchBarSupport.toggleTouchBarEsc(enteringFullScr: false)
-    }
+    player.touchBarSupport.toggleTouchBarEsc(enteringFullScr: false)
 
     window!.addTitlebarAccessoryViewController(titlebarAccesoryViewController)
 
     // Must not access mpv while it is asynchronously processing stop and quit commands.
     // See comments in windowWillExitFullScreen for details.
-    guard !isClosing else { return }
+    guard player.info.state.active else { return }
     showUI()
     updateTimer()
 
@@ -1452,12 +1417,12 @@ class MainWindowController: PlayerWindowController {
     videoView.layoutSubtreeIfNeeded()
     videoView.videoLayer.resume()
 
-    if Preference.bool(for: .pauseWhenLeavingFullScreen) && player.info.isPlaying {
+    if Preference.bool(for: .pauseWhenLeavingFullScreen) && player.info.state == .playing {
       player.pause()
     }
 
     // restore ontop status
-    if player.info.isPlaying {
+    if player.info.state == .playing {
       setWindowFloatingOnTop(isOntop, updateOnTopStatus: false)
     }
 
@@ -1532,7 +1497,7 @@ class MainWindowController: PlayerWindowController {
   private func setWindowFrameForLegacyFullScreen() {
     guard let window = self.window else { return }
     let screen = window.screen ?? NSScreen.main!
-    window.setFrame(screen.frame, display: true, animate: !AccessibilityPreferences.motionReductionEnabled)
+    window.setFrame(screen.frame, display: true, animate: !Preference.bool(for: PK.disableAnimations))
     guard let unusable = screen.cameraHousingHeight else { return }
     // This screen contains an embedded camera. Shorten the height of the window's content view's
     // frame to avoid having part of the window obscured by the camera housing.
@@ -1677,12 +1642,17 @@ class MainWindowController: PlayerWindowController {
     player.events.emit(.windowResized, data: window.frame)
   }
 
+  func windowWillStartLiveResize(_ notification: Notification) {
+    videoView.videoLayer.isAsynchronous = true
+  }
+
   // resize framebuffer in videoView after resizing.
   func windowDidEndLiveResize(_ notification: Notification) {
     // Must not access mpv while it is asynchronously processing stop and quit commands.
     // See comments in windowWillExitFullScreen for details.
-    guard !isClosing else { return }
+    guard player.info.state.active else { return }
     videoView.videoSize = window!.convertToBacking(videoView.bounds).size
+    videoView.videoLayer.isAsynchronous = false
     updateWindowParametersForMPV()
   }
 
@@ -1719,7 +1689,7 @@ class MainWindowController: PlayerWindowController {
     if NSApp.keyWindow == nil ||
       (NSApp.keyWindow?.windowController is MainWindowController ||
         (NSApp.keyWindow?.windowController is MiniPlayerWindowController && NSApp.keyWindow?.windowController != player.miniPlayer)) {
-      if Preference.bool(for: .pauseWhenInactive), player.info.isPlaying {
+      if Preference.bool(for: .pauseWhenInactive), player.info.state == .playing {
         player.pause()
         isPausedDueToInactive = true
       }
@@ -1744,7 +1714,7 @@ class MainWindowController: PlayerWindowController {
   }
 
   func windowWillMiniaturize(_ notification: Notification) {
-    if Preference.bool(for: .pauseWhenMinimized), player.info.isPlaying {
+    if Preference.bool(for: .pauseWhenMinimized), player.info.state == .playing {
       isPausedDueToMiniaturization = true
       player.pause()
     }
@@ -1752,9 +1722,7 @@ class MainWindowController: PlayerWindowController {
 
   func windowDidMiniaturize(_ notification: Notification) {
     if Preference.bool(for: .togglePipByMinimizingWindow) && !isWindowMiniaturizedDueToPip {
-      if #available(macOS 10.12, *) {
-        enterPIP()
-      }
+      enterPIP()
     }
     player.events.emit(.windowMiniaturized)
   }
@@ -1765,9 +1733,7 @@ class MainWindowController: PlayerWindowController {
       isPausedDueToMiniaturization = false
     }
     if Preference.bool(for: .togglePipByMinimizingWindow) && !isWindowMiniaturizedDueToPip {
-      if #available(macOS 10.12, *) {
-        exitPIP()
-      }
+      exitPIP()
     }
     player.events.emit(.windowDeminiaturized)
   }
@@ -1786,23 +1752,11 @@ class MainWindowController: PlayerWindowController {
     guard pipStatus == .notInPIP || animationState == .hidden else {
       return
     }
-
-    // Follow energy efficiency best practices and stop the timer that updates the OSC while it is
-    // hidden. However the timer can't be stopped if the mini player is being used as it always
-    // displays the the OSC or the timer is also updating the information being displayed in the
-    // touch bar. Does this host have a touch bar? Is the touch bar configured to show app controls?
-    // Is the touch bar awake? Is the host being operated in closed clamshell mode? This is the kind
-    // of information needed to avoid running the timer and updating controls that are not visible.
-    // Unfortunately in the documentation for NSTouchBar Apple indicates "There’s no need, and no
-    // API, for your app to know whether or not there’s a Touch Bar available". So this code keys
-    // off whether AppKit has requested that a NSTouchBar object be created. This avoids running the
-    // timer on Macs that do not have a touch bar. It also may avoid running the timer when a
-    // MacBook with a touch bar is being operated in closed clameshell mode.
-    if !player.isInMiniPlayer && !player.needsTouchBar {
-      player.invalidateTimer()
-    }
+    // Don't hide UI when auto hide control bar is disabled
+    guard Preference.bool(for: .enableControlBarAutoHide) else { return }
 
     animationState = .willHide
+    player.refreshSyncUITimer()
     fadeableViews.forEach { (v) in
       v.isHidden = false
     }
@@ -1837,10 +1791,7 @@ class MainWindowController: PlayerWindowController {
     }
     // The OSC may not have been updated while it was hidden to avoid wasting energy. Make sure it
     // is up to date.
-    player.syncUITime()
-    if !player.info.isPaused {
-      player.createSyncUITimer()
-    }
+    player.refreshSyncUITimer()
     standardWindowButtons.forEach { $0.isEnabled = true }
     NSAnimationContext.runAnimationGroup({ (context) in
       context.duration = UIAnimationDuration
@@ -1921,31 +1872,33 @@ class MainWindowController: PlayerWindowController {
 
   // MARK: - UI: OSD
 
-  // Do not call displayOSD directly, call PlayerCore.sendOSD instead.
-  func displayOSD(_ message: OSDMessage, autoHide: Bool = true, forcedTimeout: Float? = nil, accessoryView: NSView? = nil, context: Any? = nil) {
-    guard player.displayOSD && !isShowingPersistentOSD else { return }
-
-    if hideOSDTimer != nil {
-      hideOSDTimer!.invalidate()
-      hideOSDTimer = nil
-    }
-    osdAnimationState = .shown
-
+  private func setOSDViews(fromMessage message: OSDMessage) {
+    osdLastMessage = message
+    
     let (osdString, osdType) = message.message()
-
-    let osdTextSize = Preference.float(for: .osdTextSize)
-    osdLabel.font = NSFont.monospacedDigitSystemFont(ofSize: CGFloat(osdTextSize), weight: .regular)
-    osdAccessoryText.font = NSFont.monospacedDigitSystemFont(ofSize: CGFloat(osdTextSize * 0.5).clamped(to: 11...25), weight: .regular)
     osdLabel.stringValue = osdString
 
+    // Most OSD messages are displayed based on the configured language direction.
+    osdAccessoryProgress.userInterfaceLayoutDirection = osdStackView.userInterfaceLayoutDirection
+    osdAccessoryText.baseWritingDirection = .natural
+    osdLabel.baseWritingDirection = .natural
     switch osdType {
     case .normal:
       osdStackView.setVisibilityPriority(.notVisible, for: osdAccessoryText)
       osdStackView.setVisibilityPriority(.notVisible, for: osdAccessoryProgress)
+    case .withPosition(let value):
+      // OSD messages displaying the playback position must always be displayed left to right.
+      osdAccessoryProgress.userInterfaceLayoutDirection = .leftToRight
+      osdLabel.baseWritingDirection = .leftToRight
+      fallthrough
     case .withProgress(let value):
       osdStackView.setVisibilityPriority(.notVisible, for: osdAccessoryText)
       osdStackView.setVisibilityPriority(.mustHold, for: osdAccessoryProgress)
       osdAccessoryProgress.doubleValue = value
+    case .withLeftToRightText(let text):
+      // OSD messages displaying the playback position must always be displayed left to right.
+      osdAccessoryText.baseWritingDirection = .leftToRight
+      fallthrough
     case .withText(let text):
       // data for mustache redering
       let osdData: [String: String] = [
@@ -1959,6 +1912,38 @@ class MainWindowController: PlayerWindowController {
       osdStackView.setVisibilityPriority(.notVisible, for: osdAccessoryProgress)
       osdAccessoryText.stringValue = try! (try! Template(string: text)).render(osdData)
     }
+  }
+
+  /// Show a message in the on screen display.
+  /// - Parameters:
+  ///   - message: The `OSDMessage` to display.
+  ///   - autoHide: If `true` (the default) the message will be hidden after a timeout.
+  ///   - forcedTimeout: Timeout after which the message will be hidden (overrides user configured timeout).
+  ///   - accessoryView: Custom view to display (if not supplied normal OSD views are used).
+  ///   - context: Additional information associated with the message.
+  /// - Attention: Do not call `displayOSD` directly, call `PlayerCore.sendOSD` instead.
+  /// - Important: As per Apple's [Internationalization and Localization Guide](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPInternational/SupportingRight-To-LeftLanguages/SupportingRight-To-LeftLanguages.html)
+  ///     timeline indicators should not flip in a right-to-left language. Thus OSD messages referencing a position within the video
+  ///     must always use a left to right layout.
+  func displayOSD(_ message: OSDMessage, autoHide: Bool = true, forcedTimeout: Float? = nil, accessoryView: NSView? = nil, context: Any? = nil) {
+    guard player.displayOSD || message.alwaysEnabled, !isShowingPersistentOSD else { return }
+
+    if hideOSDTimer != nil {
+      hideOSDTimer!.invalidate()
+      hideOSDTimer = nil
+    }
+    if osdAnimationState != .shown {
+      osdAnimationState = .shown  /// set this before calling `refreshSyncUITimer()`
+      player.refreshSyncUITimer()
+    } else {
+      osdAnimationState = .shown
+    }
+
+    let osdTextSize = Preference.float(for: .osdTextSize)
+    osdLabel.font = NSFont.monospacedDigitSystemFont(ofSize: CGFloat(osdTextSize), weight: .regular)
+    osdAccessoryText.font = NSFont.monospacedDigitSystemFont(ofSize: CGFloat(osdTextSize * 0.5).clamped(to: 11...25), weight: .regular)
+
+    setOSDViews(fromMessage: message)
 
     osdVisualEffectView.alphaValue = 1
     osdVisualEffectView.isHidden = false
@@ -1973,9 +1958,7 @@ class MainWindowController: PlayerWindowController {
         osdContext = context
       }
 
-      if #available(macOS 10.14, *) {} else {
-        accessoryView.appearance = NSAppearance(named: .vibrantDark)
-      }
+      accessoryView.appearance = NSAppearance(named: .vibrantDark)
       let heightConstraint = NSLayoutConstraint(item: accessoryView, attribute: .height, relatedBy: .greaterThanOrEqual, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: 300)
       heightConstraint.priority = .defaultLow
       heightConstraint.isActive = true
@@ -1994,7 +1977,7 @@ class MainWindowController: PlayerWindowController {
       accessoryView.layer?.opacity = 0
 
       NSAnimationContext.runAnimationGroup({ context in
-        context.duration = 0.3
+        context.duration = AccessibilityPreferences.adjustedDuration(0.3)
         context.allowsImplicitAnimation = true
         window!.setFrame(newFrame, display: true)
         osdVisualEffectView.layoutSubtreeIfNeeded()
@@ -2018,11 +2001,13 @@ class MainWindowController: PlayerWindowController {
     }) {
       if self.osdAnimationState == .willHide {
         self.osdAnimationState = .hidden
+        self.osdVisualEffectView.isHidden = true
         self.osdStackView.views(in: .bottom).forEach { self.osdStackView.removeView($0) }
       }
     }
     isShowingPersistentOSD = false
     osdContext = nil
+    player.refreshSyncUITimer()
   }
 
   func updateAdditionalInfo() {
@@ -2038,6 +2023,15 @@ class MainWindowController: PlayerWindowController {
 
   // MARK: - UI: Side bar
 
+  /// Show the given sidebar.
+  ///
+  /// Normally the sidebar is revealed by sliding it into view. However if the macOS [System Settings](https://support.apple.com/guide/mac-help/change-system-settings-mh15217/mac)
+  /// [reduce motion](https://support.apple.com/guide/mac-help/stop-or-reduce-onscreen-motion-mchlc03f57a1/mac)
+  /// setting is enabled then instead the sidebar will fade in. If the user enables the IINA `Disable animations` setting then the
+  /// duration of the animation will be set to zero making the sidebar appear instantly.
+  /// - Parameters:
+  ///   - viewController: View controller for the sidebar to show.
+  ///   - type: Type of sidebar to show (playlist or settings).
   private func showSideBar(viewController: SidebarViewController, type: SideBarViewType) {
     guard !isInInteractiveMode else { return }
 
@@ -2048,8 +2042,17 @@ class MainWindowController: PlayerWindowController {
     sidebarAnimationState = .willShow
     let width = type.width()
     sideBarWidthConstraint.constant = width
-    sideBarRightConstraint.constant = -width
-    sideBarView.isHidden = false
+    // The macOS setting could change at any point in time. Remember which type of animation is
+    // being used. Avoid using fading when disabling animations as that animation will initially
+    // malfunction if used with a short duration.
+    let useFade = AccessibilityPreferences.motionReductionEnabled &&
+                  !Preference.bool(for: PK.disableAnimations)
+    if useFade {
+      sideBarRightConstraint.constant = 0
+    } else {
+      sideBarRightConstraint.constant = -width
+      sideBarView.isHidden = false
+    }
     // add view and constraints
     sideBarView.addSubview(view)
     let constraintsH = NSLayoutConstraint.constraints(withVisualFormat: "H:|[v]|", options: [], metrics: nil, views: ["v": view])
@@ -2062,7 +2065,11 @@ class MainWindowController: PlayerWindowController {
     NSAnimationContext.runAnimationGroup({ (context) in
       context.duration = AccessibilityPreferences.adjustedDuration(SideBarAnimationDuration)
       context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-      sideBarRightConstraint.animator().constant = 0
+      if useFade {
+        sideBarView.animator().isHidden = false
+      } else {
+        sideBarRightConstraint.animator().constant = 0
+      }
     }) {
       self.sidebarAnimationState = .shown
       self.sideBarStatus = type
@@ -2072,15 +2079,34 @@ class MainWindowController: PlayerWindowController {
   func hideSideBar(animate: Bool = true, after: @escaping () -> Void = { }) {
     sidebarAnimationState = .willHide
     let currWidth = sideBarWidthConstraint.constant
+    // The macOS setting could change at any point in time. Remember which type of animation is
+    // being used. Avoid using fading when disabling animations as that animation will initially
+    // malfunction if used with a short duration.
+    let useFade = AccessibilityPreferences.motionReductionEnabled &&
+                  !Preference.bool(for: PK.disableAnimations)
     NSAnimationContext.runAnimationGroup({ (context) in
       context.duration = animate ? AccessibilityPreferences.adjustedDuration(SideBarAnimationDuration) : 0
       context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-      sideBarRightConstraint.animator().constant = -currWidth
+      if useFade {
+        sideBarView.animator().alphaValue = 0
+      } else {
+        sideBarRightConstraint.animator().constant = -currWidth
+      }
     }) {
       if self.sidebarAnimationState == .willHide {
         self.sideBarStatus = .hidden
         self.sideBarView.subviews.removeAll()
         self.sideBarView.isHidden = true
+        // When in full screen mode with both the additional info view and the sidebar displayed the
+        // info view will be positioned to avoid overlapping the sidebar. While hidden the sidebar
+        // must be positioned outside of the window to allow the additional info view to be aligned
+        // with the edge of the window. When reduce motion is not enabled the sidebar slides out of
+        // the window. But when the sidebar fades out of view, the constraint must be adjusted to
+        // put the sidebar outside of the window once it is hidden.
+        if useFade {
+          self.sideBarRightConstraint.constant = -currWidth
+          self.sideBarView.alphaValue = 1
+        }
         self.sidebarAnimationState = .hidden
         after()
       }
@@ -2135,11 +2161,7 @@ class MainWindowController: PlayerWindowController {
     // prerequisites
     guard let window = window else { return }
 
-    if #available(macOS 10.14, *) {
-      window.backgroundColor = .windowBackgroundColor
-    } else {
-      window.backgroundColor = NSColor(calibratedWhite: 0.1, alpha: 1)
-    }
+    window.backgroundColor = .windowBackgroundColor
 
     let (ow, oh) = player.originalVideoSize
     guard ow != 0 && oh != 0 else {
@@ -2147,7 +2169,7 @@ class MainWindowController: PlayerWindowController {
       return
     }
 
-    isPausedPriorToInteractiveMode = player.info.isPaused
+    isPausedPriorToInteractiveMode = player.info.state == .paused
     player.pause()
     isInInteractiveMode = true
     hideUI()
@@ -2265,6 +2287,16 @@ class MainWindowController: PlayerWindowController {
     }
   }
 
+  private func refreshSeekTimeAndThumbnail(from event: NSEvent) {
+    let isCoveredByOSD = !osdVisualEffectView.isHidden && isMouseEvent(event, inAnyOf: [osdVisualEffectView])
+    let isCoveredBySidebar = !sideBarView.isHidden && isMouseEvent(event, inAnyOf: [sideBarView])
+    if isMouseInSlider, !isCoveredByOSD, !isCoveredBySidebar {
+      updateTimeLabel(event.locationInWindow)
+    } else {
+      thumbnailPeekView.isHidden = true
+    }
+  }
+
   /// Determine if the thumbnail preview can be shown above the progress bar in the on screen controller..
   ///
   /// Normally the OSC's thumbnail preview is shown above the time preview. This is the preferred location. However the
@@ -2290,7 +2322,8 @@ class MainWindowController: PlayerWindowController {
   }
 
   /** Display time label when mouse over slider */
-  private func updateTimeLabel(_ mouseXPos: CGFloat, originalPos: NSPoint) {
+  private func updateTimeLabel(_ posInWindow: NSPoint) {
+    let mouseXPos = playSlider.convert(posInWindow, from: nil).x
     let timeLabelXPos = round(mouseXPos + playSlider.frame.origin.x - timePreviewWhenSeek.frame.width / 2)
     let timeLabelYPos = playSlider.frame.origin.y + playSlider.frame.height
     timePreviewWhenSeek.frame.origin = NSPoint(x: timeLabelXPos, y: timeLabelYPos)
@@ -2308,13 +2341,24 @@ class MainWindowController: PlayerWindowController {
       if player.info.thumbnailsReady, let image = player.info.getThumbnail(forSecond: previewTime.second)?.image {
         thumbnailPeekView.imageView.image = image.rotate(rotation)
         thumbnailPeekView.isHidden = false
+
+        // In some formats (like most of Japanese TV video formats), display aspect ratios (DAR) are different from the
+        // sample aspect ratio (SAR). A typical configuration is SAR 1440x1080i (4:3) w/ DAR 1920x1080 (16:9). Here we try
+        // to get the display aspect ratio from mpv to properly display the thumbnail.
+        let displayAspectRatio: CGFloat
+        if let width = player.info.displayWidth, let height = player.info.displayHeight {
+          displayAspectRatio = CGFloat(width) / CGFloat(height)
+        } else {
+          displayAspectRatio = thumbnailPeekView.imageView.image!.size.aspect
+        }
+
         let width = 250.0;
-        let height = round(width / thumbnailPeekView.imageView.image!.size.aspect)
+        let height = round(width / displayAspectRatio)
         let timePreviewFrameInWindow = timePreviewWhenSeek.superview!.convert(timePreviewWhenSeek.frame.origin, to: nil)
         let showAbove = canShowThumbnailAbove(timnePreviewYPos: timePreviewFrameInWindow.y, thumbnailHeight: height)
         let yPos = showAbove ? timePreviewFrameInWindow.y + timePreviewWhenSeek.frame.height : sliderFrameInWindow.y - height
         thumbnailPeekView.frame.size = NSSize(width: width, height: height)
-        thumbnailPeekView.frame.origin = NSPoint(x: round(originalPos.x - thumbnailPeekView.frame.width / 2), y: yPos)
+        thumbnailPeekView.frame.origin = NSPoint(x: round(posInWindow.x - thumbnailPeekView.frame.width / 2), y: yPos)
       } else {
         thumbnailPeekView.isHidden = true
       }
@@ -2421,9 +2465,7 @@ class MainWindowController: PlayerWindowController {
     // set aspect ratio
     let originalVideoSize = NSSize(width: width, height: height)
     window.aspectRatio = originalVideoSize
-    if #available(macOS 10.12, *) {
-      pip.aspectRatio = originalVideoSize
-    }
+    pip.aspectRatio = originalVideoSize
 
     videoView.videoSize = window.convertToBacking(videoView.frame).size
 
@@ -2503,7 +2545,7 @@ class MainWindowController: PlayerWindowController {
       if let screenFrame = window.screen?.frame {
         rect = rect.constrain(in: screenFrame)
       }
-      if player.disableWindowAnimation {
+      if player.disableWindowAnimation || Preference.bool(for: .disableAnimations) {
         window.setFrame(rect, display: true, animate: false)
       } else {
         // animated `setFrame` can be inaccurate!
@@ -2529,7 +2571,7 @@ class MainWindowController: PlayerWindowController {
     if let videoWidth = player.info.videoWidth {
       let windowScale = Double((frame ?? window.frame).width) / Double(videoWidth)
       player.info.cachedWindowScale = windowScale
-      player.mpv.setDouble(MPVProperty.windowScale, windowScale)
+      player.mpv.setDouble(MPVProperty.windowScale, windowScale, level: .verbose)
     }
   }
 
@@ -2578,7 +2620,7 @@ class MainWindowController: PlayerWindowController {
       blackWindow.level = .iinaBlackScreen
 
       blackWindows.append(blackWindow)
-      blackWindow.makeKeyAndOrderFront(nil)
+      blackWindow.orderFront(self)
     }
   }
 
@@ -2599,6 +2641,33 @@ class MainWindowController: PlayerWindowController {
   }
 
   // MARK: - Sync UI with playback
+
+  func isUITimerNeeded() -> Bool {
+    let isShowingFadeableViews = animationState == .shown || animationState == .willShow
+    let isShowingOSD = osdAnimationState == .shown || osdAnimationState == .willShow
+    return isShowingFadeableViews || isShowingOSD
+  }
+
+  override func updatePlayTime(withDuration duration: Bool, andProgressBar: Bool) {
+    super.updatePlayTime(withDuration: duration, andProgressBar: andProgressBar)
+
+    if osdAnimationState == .shown, let osdLastMessage = self.osdLastMessage {
+      let message: OSDMessage
+      switch osdLastMessage {
+      case .pause, .resume:
+        message = osdLastMessage
+      case .seek(_, _):
+        let osdText = (player.info.videoPosition?.stringRepresentation ?? Constants.String.videoTimePlaceholder) + " / " +
+        (player.info.videoDuration?.stringRepresentation ?? Constants.String.videoTimePlaceholder)
+        let percentage = (player.info.videoPosition / player.info.videoDuration) ?? 1
+        message = .seek(osdText, percentage)
+      default:
+        return
+      }
+
+      setOSDViews(fromMessage: message)
+    }
+  }
 
   override func updatePlayButtonState(_ state: NSControl.StateValue) {
     super.updatePlayButtonState(state)
@@ -2635,11 +2704,18 @@ class MainWindowController: PlayerWindowController {
     }
   }
 
+  override func updateVolume() {
+    guard loaded else { return }
+    super.updateVolume()
+    guard !player.info.isMuted else { return }
+    muteButton.image = volumeIcon()
+  }
+
   // MARK: - IBActions
 
   @IBAction override func playButtonAction(_ sender: NSButton) {
     super.playButtonAction(sender)
-    if (player.info.isPaused) {
+    if player.info.state == .paused {
       // speed is already reset by playerCore
       speedValueIndex = AppData.availableSpeedValues.count / 2
       leftArrowLabel.isHidden = true
@@ -2828,7 +2904,7 @@ class MainWindowController: PlayerWindowController {
   /** When slider changes */
   @IBAction override func playSliderChanges(_ sender: NSSlider) {
     // guard let event = NSApp.currentEvent else { return }
-    guard !player.info.fileLoading else { return }
+    guard player.info.state.active, player.info.state != .loading else { return }
     super.playSliderChanges(sender)
 
     // seek and update time
@@ -2848,12 +2924,10 @@ class MainWindowController: PlayerWindowController {
     case .musicMode:
       player.switchToMiniPlayer()
     case .pip:
-      if #available(macOS 10.12, *) {
-        if pipStatus == .inPIP {
-          exitPIP()
-        } else if pipStatus == .notInPIP {
-          enterPIP()
-        }
+      if pipStatus == .inPIP {
+        exitPIP()
+      } else if pipStatus == .notInPIP {
+        enterPIP()
       }
     case .playlist:
       showPlaylistSidebar()
@@ -2868,44 +2942,6 @@ class MainWindowController: PlayerWindowController {
 
   // MARK: - Utility
 
-  internal override func handleIINACommand(_ cmd: IINACommand) {
-    super.handleIINACommand(cmd)
-    switch cmd {
-    case .togglePIP:
-      if #available(macOS 10.12, *) {
-        menuTogglePIP(.dummy)
-      }
-    case .videoPanel:
-      menuShowVideoQuickSettings(.dummy)
-    case .audioPanel:
-      menuShowAudioQuickSettings(.dummy)
-    case .subPanel:
-      menuShowSubQuickSettings(.dummy)
-    case .playlistPanel:
-      menuShowPlaylistPanel(.dummy)
-    case .chapterPanel:
-      menuShowChaptersPanel(.dummy)
-    case .toggleMusicMode:
-      menuSwitchToMiniPlayer(.dummy)
-    case .deleteCurrentFileHard:
-      menuActionHandler.menuDeleteCurrentFileHard(.dummy)
-    case .biggerWindow:
-      let item = NSMenuItem()
-      item.tag = 11
-      menuChangeWindowSize(item)
-    case .smallerWindow:
-      let item = NSMenuItem()
-      item.tag = 10
-      menuChangeWindowSize(item)
-    case .fitToScreen:
-      let item = NSMenuItem()
-      item.tag = 3
-      menuChangeWindowSize(item)
-    default:
-      break
-    }
-  }
-
   private func resetCollectionBehavior() {
     guard !fsState.isFullscreen else { return }
     if Preference.bool(for: .useLegacyFullScreen) {
@@ -2919,7 +2955,6 @@ class MainWindowController: PlayerWindowController {
 
 // MARK: - Picture in Picture
 
-@available(macOS 10.12, *)
 extension MainWindowController: PIPViewControllerDelegate {
 
   func enterPIP() {
@@ -2929,7 +2964,7 @@ extension MainWindowController: PIPViewControllerDelegate {
 
     pipVideo = NSViewController()
     pipVideo.view = videoView
-    pip.playing = player.info.isPlaying
+    pip.playing = player.info.state == .playing
     pip.title = window?.title
 
     pip.presentAsPicture(inPicture: pipVideo)
@@ -2984,7 +3019,7 @@ extension MainWindowController: PIPViewControllerDelegate {
     // it's not necessary while the video is playing and significantly more
     // noticeable, we only redraw if we are paused.
     let currentTrackIsAlbumArt = player.info.currentTrack(.video)?.isAlbumart ?? false
-    if player.info.isPaused || currentTrackIsAlbumArt {
+    if player.info.state == .paused || currentTrackIsAlbumArt {
       videoView.videoLayer.draw(forced: true)
     }
 

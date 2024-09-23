@@ -16,6 +16,9 @@
 "general.username" = "Nazwa użytkownika";
 "general.password" = "Hasło";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Najważniejsze";
 "guide.basic_settings" = "Ustawienia podstawowe";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Wersje \"Nightly\" nie jest zalecana do codziennego użytku. Aktualnie nie wspierają one automatycznej aktualizacji. Pobierz ręcznie nowsze wydania z naszej <a href=\"https://nightly.iina.io\">strony wersji nightly</a>.";
 "initial.debug.desc" = "Wersje \"Debug\" przeważnie nie są zoptymalizowane pod kątem wydajności, więc nie jest zalecane wykorzystywanie ich jako wersji codziennego użytku. Wersje \"Debug\" nie wspierają automatycznych aktualizacji.";
 "initial.bug_report" = "Zgłoś przez <a href=\"https://github.com/iina/iina/issues\">GitHub issues</a>.";
+
+// Inspector Window
+"inspector.error" = "Błąd";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Buforowanie… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Dekodowanie sprzętowe";
 "quicksetting.deinterlace" = "Usuwanie przeplotu";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Ukryj";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Pauza";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Opóźnienie napisów: %.2fs później";
 "osd.sub_delay.earlier" = "Opóźnienie napisów: %.2fs wcześniej";
 "osd.subtitle_pos" = "Pozycja napisów: %.1f";
+"osd.sub_hidden" = "Subtitles Hidden";
+"osd.sub_visible" = "Subtitles Visible";
+"osd.sub_second_delay.nodelay" = "Secondary Subtitle Delay: No Delay";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Secondary Subtitle Delay: %.2fs Earlier";
+"osd.sub_second_hidden" = "Secondary Subtitles Hidden";
+"osd.sub_second_pos" = "Secondary Subtitle Position: %.1f";
+"osd.sub_second_visible" = "Secondary Subtitles Visible";
 "osd.mute" = "Wycisz dźwięk";
 "osd.unmute" = "Włącz dźwięk";
 "osd.screenshot" = "Zachowano zrzut ekranu";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Wyszukiwanie napisów online…";
 "osd.find_online_sub.source" = "z";
 "osd.sub_not_found" = "Nie znaleziono pasujących napisów";
-"osd.sub_found" = "Znaleziono %d napisów. Pobieranie…";
+"osd.sub_found" = "%d subtitles found.";
+"osd.sub_downloading" = "Downloading %d subtitles";
 "osd.sub_downloaded" = "Pobrano napisy";
 "osd.sub_saved" = "Zapisano napisy";
 "osd.network_error" = "Błąd sieci";
 "osd.file_error" = "Błąd wczytywania pliku";
 "osd.cannot_login" = "Nie można się zalogować";
 "osd.canceled" = "Anulowane";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "Błąd połączenia";
+"osd.timed_out" = "Upłynął limit czasu odpowiedzi";
 "osd.filter_added" = "Dodano filtr: %@";
 "osd.filter_removed" = "Usunięto filtr";
-"osd.file_loop" = "Pętla pliku: %@";
-"osd.playlist_loop" = "Pętla listy odtwarzania: %@";
+"osd.file_loop" = "Zapętl pojedynczy plik";
+"osd.playlist_loop" = "Zapętl playlistę";
+"osd.no_loop" = "Wyłącz zapętlenie";
 
 "preference.title" = "Preferencje";
 "preference.general" = "Ogólne";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Włącz ustawienia zaawansowane";
 
+"preference.sub_override_level.force" = "wymuś";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "pasek";
+"preference.sub_override_level.yes" = "tak";
+
 "menu.volume" = "Głośność: %d";
 "menu.volume_muted" = "Głośność: %d (Wyciszono)";
 "menu.audio_delay" = "Opóźnienie audio: %.2fs";
 "menu.sub_delay" = "Opóźnienie napisów: %.2fs";
+"menu.sub_hide" = "Ukryj napisy";
+"menu.sub_show" = "Pokaż napisy";
+"menu.sub_second_hide" = "Hide Secondary Subtitles";
+"menu.sub_second_show" = "Show Secondary Subtitles";
 "menu.fullscreen" = "Włącz tryb pełnoekranowy";
 "menu.exit_fullscreen" = "Opuść tryb pełnoekranowy";
 "menu.pip" = "Włącz tryb Obraz-w-obrazie";
 "menu.exit_pip" = "Wyłącz tryb Obraz-w-obrazie";
+"menu.mini_player" = "Przejdź do trybu muzycznego";
+"menu.exit_mini_player" = "Wyjdź z trybu muzycznego";
 "menu.pause" = "Pauza";
 "menu.resume" = "Wznów";
 "menu.speed" = "Prędkość: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Opóźnienie napisów +%.1fs";
 "menu.sub_delay_down" = "Opóźnienie napisów -%.1fs";
 
-"menu.crop_custom" = "Niestandardowe...";
+"menu.crop_custom" = "Własne…";
 "menu.find_online_sub" = "Znajdź napisy online z %@";
 
+"track.audio" = "Dźwięk";
 "track.none" = "<Brak>";
+"track.sub" = "Napisy";
+"track.video" = "Obraz";
 
 "subtrack.no_loaded" = "Brak wczytanych napisów";
 "subtrack.no_external" = "Nie znaleziono zewnętrznych napisów";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Błąd krytyczny: %@ \nAplikacja zostanie zamknięta.";
 "alert.mpv_error" = "Wystąpił wewnętrzny błąd %@ (%@) podczas ustawiania opcji %@.";
-"alert.sleep" = "Nie można zapobiec uśpieniu ekranu! (0x%0X8)";
 
 "alert.unsupported_audio" = "Nieobsługiwany zewnętrzny plik audio.";
 "alert.unsupported_sub" = "Nieobsługiwane zewnętrzne napisy.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Powiel konfigurację";
 "alert.config.duplicate.message" = "Proszę wprowadzić nazwę dla duplikatu pliku konfiguracyjnego.";
 "alert.config.empty_name" = "Nazwa nie może być pusta.";
-"alert.config.name_existing" = "Ta nazwa już istnieje.";
+"alert.config.name_existing" = "Konfiguracja o tej samej nazwie już istnieje.";
 "alert.config.file_existing.title" = "Plik już istnieje";
-"alert.config.file_existing.message" = "Coś poszło nie tak. Wybierz OK, aby nadpisać lub Anuluj, aby pokazać plik w Finderze.";
+"alert.config.file_existing.message" = "Plik konfiguracyjny o tej samej nazwie już istnieje.";
 "alert.config.cannot_create" = "Nie można utworzyć pliku konfiguracyjnego!\n%@";
 "alert.config.cannot_write" = "Nie można zapisać pliku konfiguracyjnego!";
+"alert.config.rename.title" = "Zmień nazwę konfiguracji wejść";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Podczas ustawiania filtrów wystąpił błąd. Proszę sprawdzić format parametru.";
 "alert.add_filter.title" = "Nowy filtr";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Przełącz tryb pełnoekranowy";
 "osc_toolbar.music_mode" = "Przejdź w tryb muzyczny";
 "osc_toolbar.sub_track" = "Wybierz ścieżkę napisów";
+"osc_toolbar.screenshot" = "Take a screenshot";
 
 "mini_player.album_art" = "Przełącz okładkę albumu";
 "mini_player.loop" = "Powtarzaj";

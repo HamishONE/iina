@@ -19,7 +19,7 @@ class OpenSub {
     private static let dateFormatter: DateFormatter = {
       let dateFormatter = DateFormatter()
       dateFormatter.dateStyle = .medium
-      dateFormatter.timeStyle = .medium
+      dateFormatter.timeStyle = .none
       return dateFormatter
     }()
 
@@ -72,16 +72,25 @@ class OpenSub {
     ///            view displayed to the user for choosing the subtitle files to download.
     override func getDescription() -> (name: String, left: String, right: String) {
       let attributes = subtitle.attributes
-      let downloadCount = String(attributes.downloadCount)
-      let filename = attributes.files[0].fileName
-      let language = attributes.language
-      let rating = String(attributes.ratings)
+      var tokens: [String] = []
+
+      tokens.append(attributes.language)
+
+      if let releaseYear = attributes.featureDetails.year, releaseYear > 0 {
+        tokens.append("(\(releaseYear))")
+      }
+
+      if let fps = attributes.fps, fps != 0 {
+        tokens.append("\(fps.stringWithMaxFractionDigits2) fps")
+      }
+
+      let downloadCount = "\u{2b07}\(attributes.downloadCount)"
+      tokens.append(downloadCount)
+
+      let fileName = attributes.files[0].fileName
+      let description = tokens.joined(separator: "  ")
       let uploadDate = OpenSub.Subtitle.dateFormatter.string(from: attributes.uploadDate)
-      return (
-        filename,
-        "\(language) \u{2b07}\(downloadCount) \u{2605}\(rating)",
-        uploadDate
-      )
+      return (fileName, description, uploadDate)
     }
   }
 
@@ -287,7 +296,7 @@ class OpenSub {
     /// - Parameter timeout: The timeout to to use for the the request.
     override func logout(timeout: TimeInterval? = nil) -> Promise<Void> {
       guard OpenSubClient.shared.loggedIn else {
-        Logger.log("Not logged in to Open Subtitles")
+        log("Not logged in to Open Subtitles")
         return .value
       }
       log("Logging out of Open Subtitles")

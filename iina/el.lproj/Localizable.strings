@@ -16,6 +16,9 @@
 "general.username" = "Όνομα Χρήστη";
 "general.password" = "Κωδικός";
 
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
+
 // Guide Window
 "guide.highlights" = "Επισημάνσεις";
 "guide.basic_settings" = "Βασικές Ρυθμίσεις";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "Nightly is not recommended to be used as daily drive. Currently nightly builds do not support auto update. Please manually download newer builds from our <a href=\"https://nightly.iina.io\">nightly website</a>.";
 "initial.debug.desc" = "Debug builds are usually not optimized for performance, so it is not recommended to be used as daily drive. Debug builds do not support auto update.";
 "initial.bug_report" = "Report via <a href=\"https://github.com/iina/iina/issues\">GitHub issues</a>.";
+
+// Inspector Window
+"inspector.error" = "Σφάλμα";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Προφόρτωση… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Αποκωδικοποίηση Υλικού";
 "quicksetting.deinterlace" = "Αποπλεξία";
 "quicksetting.hdr" = "Υψηλό Δυναμικό Εύρος";
+"quicksetting.hide" = "Hide";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Παύση";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Καθυστέρηση Υποτίτλων: %.2fs Αργότερα";
 "osd.sub_delay.earlier" = "Καθυστέρηση Υποτίτλων: %.2fs Νωρίτερα";
 "osd.subtitle_pos" = "Θέση Υποτίτλων: %.1f";
+"osd.sub_hidden" = "Subtitles Hidden";
+"osd.sub_visible" = "Subtitles Visible";
+"osd.sub_second_delay.nodelay" = "Secondary Subtitle Delay: No Delay";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Secondary Subtitle Delay: %.2fs Earlier";
+"osd.sub_second_hidden" = "Secondary Subtitles Hidden";
+"osd.sub_second_pos" = "Secondary Subtitle Position: %.1f";
+"osd.sub_second_visible" = "Secondary Subtitles Visible";
 "osd.mute" = "Σίγαση";
 "osd.unmute" = "Αποσίγαση";
 "osd.screenshot" = "Ελήφθη Στιγμιότυπο Οθόνης";
@@ -80,7 +124,8 @@
 "osd.find_online_sub" = "Αναζήτηση Υποτίτλων στο Διαδίκτυο…";
 "osd.find_online_sub.source" = "από";
 "osd.sub_not_found" = "Δεν βρέθηκαν Υπότιτλοι";
-"osd.sub_found" = "%d Υπότιτλοι βρέθηκαν. Μεταφόρτωση…";
+"osd.sub_found" = "%d subtitles found.";
+"osd.sub_downloading" = "Downloading %d subtitles";
 "osd.sub_downloaded" = "Έγινε λήψη Υποτίτλων";
 "osd.sub_saved" = "Έγινε αποθήκευση Υποτίτλων";
 "osd.network_error" = "Σφάλμα Δικτύου";
@@ -91,8 +136,9 @@
 "osd.timed_out" = "Timed Out";
 "osd.filter_added" = "Προστέθηκε Φίλτρο: %@";
 "osd.filter_removed" = "Φίλτρο Αφαιρέθηκε";
-"osd.file_loop" = "Επανάληψη Αρχείου: %@";
-"osd.playlist_loop" = "Επανάληψη Λίστας Αναπαραγωγής: %@";
+"osd.file_loop" = "Loop Single File";
+"osd.playlist_loop" = "Loop Playlist";
+"osd.no_loop" = "Disable Looping";
 
 "preference.title" = "Προτιμήσεις";
 "preference.general" = "Γενικά";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Ενεργοποίηση Προηγμένων Ρυθμίσεων";
 
+"preference.sub_override_level.force" = "force";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "strip";
+"preference.sub_override_level.yes" = "yes";
+
 "menu.volume" = "Ένταση: %d";
 "menu.volume_muted" = "Volume: %d (Muted)";
 "menu.audio_delay" = "Καθυστέρηση Ήχου: %.2fs";
 "menu.sub_delay" = "Καθυστέρηση Υποτίτλων: %.2fs";
+"menu.sub_hide" = "Hide Subtitles";
+"menu.sub_show" = "Show Subtitles";
+"menu.sub_second_hide" = "Hide Secondary Subtitles";
+"menu.sub_second_show" = "Show Secondary Subtitles";
 "menu.fullscreen" = "Μετάβαση σε Πλήρη Οθόνη";
 "menu.exit_fullscreen" = "Έξοδος από Πλήρη Οθόνη";
 "menu.pip" = "Μετάβαση σε Εικόνα-σε-Εικόνα";
 "menu.exit_pip" = "Έξοδος από Εικόνα-σε-Εικόνα";
+"menu.mini_player" = "Enter Music Mode";
+"menu.exit_mini_player" = "Exit Music Mode";
 "menu.pause" = "Παύση";
 "menu.resume" = "Συνέχιση";
 "menu.speed" = "Ταχύτητα: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Καθυστέρηση Υποτίτλων + %.1fs";
 "menu.sub_delay_down" = "Καθυστέρηση Υποτίτλων - %.1fs";
 
-"menu.crop_custom" = "Προσαρμογή...";
+"menu.crop_custom" = "Custom…";
 "menu.find_online_sub" = "Find Online Subtitles from %@";
 
+"track.audio" = "Audio";
 "track.none" = "<Κενό>";
+"track.sub" = "Υπότιτλοι";
+"track.video" = "Video";
 
 "subtrack.no_loaded" = "Δεν Φορτώθηκαν Υπότιτλοι";
 "subtrack.no_external" = "Δεν Βρέθηκαν Εξωτερικοί Υπότιτλοι";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Κρίσιμο Σφάλμα: %@ \nΗ Εφαρμογή θα τερματιστεί τώρα.";
 "alert.mpv_error" = "Εσωτερικό σφάλμα %@ (%@) κατά την ρύθμιση %@.";
-"alert.sleep" = "Cannot prevent display sleep! (0x%0X8)";
 
 "alert.unsupported_audio" = "Μη υποστηριζόμενο εξωτερικό αρχείο ήχου.";
 "alert.unsupported_sub" = "Μη υποστηριζόμενοι εξωτερικοί υπότιτλοι.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Αντιγραφή Ρυθμίσεων";
 "alert.config.duplicate.message" = "Παρακαλώ εισάγετε ένα όνομα για το αντιγραμμένο αρχείο ρυθμίσεων.";
 "alert.config.empty_name" = "Το όνομα δεν μπορεί να είναι κενό.";
-"alert.config.name_existing" = "Το όνομα αυτό υπάρχει ήδη.";
+"alert.config.name_existing" = "A config with the same name already exists.";
 "alert.config.file_existing.title" = "Ήδη Υπάρχον Αρχείο";
-"alert.config.file_existing.message" = "Αυτό δε θα έπρεπε να συμβεί. Επιλέξτε ΟΚ για αντικατάσταση, ή Άκυρο για εμφάνιση του αρχείου στον Finder.";
+"alert.config.file_existing.message" = "A config file with the same filename already exists. Choose OK to show the file in Finder.";
 "alert.config.cannot_create" = "Αδυναμία δημιουργίας αρχείου ρυθμίσεων!\n%@";
 "alert.config.cannot_write" = "Αδυναμία εγγραφής στο αρχείο ρυθμίσεων!";
+"alert.config.rename.title" = "Rename Input Configuration";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Σφάλμα κατά τη ρύθμιση φίλτρων. Παρακαλώ ελέγξτε τη μορφή των παραμέτρων σας.";
 "alert.add_filter.title" = "Νέο Φίλτρο";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Toggle full screen";
 "osc_toolbar.music_mode" = "Enter music mode";
 "osc_toolbar.sub_track" = "Choose subtitle track";
+"osc_toolbar.screenshot" = "Take a screenshot";
 
 "mini_player.album_art" = "Toggle album art";
 "mini_player.loop" = "Repeat";
@@ -346,22 +408,22 @@
 // Plugin permissions
 
 "permissions.network-request.name" = "Network Request";
-"permissions.network-request.desc" = "This plugin can make requst or upload data to these websites:";
+"permissions.network-request.desc" = "This plugin can make requsts from or upload data to these websites:";
 "permissions.network-request.any_site" = "Any site";
 "permissions.show-osd.name" = "Show OSD";
 "permissions.show-osd.desc" = "This plugin can show OSD (On Screen Display) messages.";
 "permissions.show-alert.name" = "Show Alerts";
 "permissions.show-alert.desc" = "This plugin can show pop-up alerts.";
-"permissions.video-overlay.name" = "Add overlay on videos";
+"permissions.video-overlay.name" = "Add overlays on videos";
 "permissions.video-overlay.desc" = "This plugin can render additional content on the top of the video.";
 "permissions.file-system.name" = "Access the file system";
-"permissions.file-system.desc" = "This plugin can read or write files on your disk, including sensitive information. It can also call other programs or applications that can harm your computer. So be sure to verify the source.";
+"permissions.file-system.desc" = "This plugin can read or write files on your disk, which may include sensitive information. It can also execute other programs or applications that can harm your computer. So be sure to verify the source.";
 
 "plugin.install" = "Install";
 "plugin.installed" = "Installed";
 "plugin.not_installed" = "Not Installed";
 "plugin.local" = "Installed locally";
-"alert.plugin.install_error" = "Error occured during the installation: %@";
+"alert.plugin.install_error" = "Error occurred during the installation: %@";
 "alert.invalid_url" = "The URL is invalid.";
 "plugin.install_error.invalid_url" = "The URL is invalid.";
 "plugin.install_error.file_not_found" = "Cannot find the package file.";

@@ -7,7 +7,7 @@
 */
 // Common
 
-"general.on" = "Encendido";
+"general.on" = "Activado";
 "general.off" = "Apagado";
 "general.login" = "Iniciar sesión";
 "general.logout" = "Cerrar sesión";
@@ -15,6 +15,9 @@
 "general.cancel" = "Cancelar";
 "general.username" = "Nombre de usuario";
 "general.password" = "Contraseña";
+
+"input.value_is_empty" = "Value cannot be empty.";
+"input.already_exists" = "Value already exists.";
 
 // Guide Window
 "guide.highlights" = "Destacados";
@@ -27,6 +30,9 @@
 "initial.nightly.desc" = "No se recomienda usar versiones nocturnas para el uso diario. Actualmente las versiones nocturnas no soportan la actualización automática. Por favor, descargue manualmente nuevas versiones de nuestro <a href=\"https://nightly.iina.io\">sitio web nocturno</a>.";
 "initial.debug.desc" = "Las compilaciones de depuración normalmente no están optimizadas para el rendimiento, por lo que no se recomienda que se utilicen de manera habitual. Las compilaciones de depuración no soportan la actualización automática.";
 "initial.bug_report" = "Notifique a través de <a href=\"https://github.com/iina/iina/issues\">GitHub issues</a>.";
+
+// Inspector Window
+"inspector.error" = "Error";
 
 // MainWindowController.swift
 "main.buffering_indicator" = "Cargando… %d%%";
@@ -43,6 +49,36 @@
 "quicksetting.hwdec" = "Decodificación de hardware";
 "quicksetting.deinterlace" = "Desentrelazar";
 "quicksetting.hdr" = "HDR";
+"quicksetting.hide" = "Ocultar";
+
+// EQ Presets
+"eq.preset.flat" = "Flat";
+"eq.preset.acoustic" = "Acoustic";
+"eq.preset.classical" = "Classical";
+"eq.preset.dance" = "Dance";
+"eq.preset.deep" = "Deep";
+"eq.preset.electronic" = "Electronic";
+"eq.preset.hip_hop" = "Hip Hop";
+"eq.preset.increase_bass" = "Increase Bass";
+"eq.preset.increase_treble" = "Increase Treble";
+"eq.preset.increase_vocal" = "Increase Vocal";
+"eq.preset.jazz" = "Jazz";
+"eq.preset.latin" = "Latin";
+"eq.preset.loundness" = "Loundness";
+"eq.preset.lounge" = "Lounge";
+"eq.preset.piano" = "Piano";
+"eq.preset.pop" = "Pop";
+"eq.preset.rnb" = "R&B";
+"eq.preset.reduce_bass" = "Reduce Bass";
+"eq.preset.reduce_treble" = "Reduce Treble";
+"eq.preset.rock" = "Rock";
+"eq.preset.small_speaker" = "Small Speaker";
+"eq.preset.spoken_word" = "Spoken Word";
+
+"alert.eq.new_profile.title" = "New EQ Profile";
+"alert.eq.new_profile.message" = "Please enter a profile name.";
+"alert.eq.rename.title" = "Rename Currnet Profile";
+"alert.eq.rename.message" = "Please enter a new profile name.";
 
 // OSDMessage.swift
 "osd.pause" = "Pausa";
@@ -61,6 +97,14 @@
 "osd.sub_delay.later" = "Retraso de subtítulos: %.2fs Después";
 "osd.sub_delay.earlier" = "Retraso de subtítulos: %.2fs Antes";
 "osd.subtitle_pos" = "Posición de subtítulos: %.1f";
+"osd.sub_hidden" = "Subtítulos Visibles";
+"osd.sub_visible" = "Subtítulos Visibles";
+"osd.sub_second_delay.nodelay" = "Retraso secundario de subtítulos: Sin demora";
+"osd.sub_second_delay.later" = "Secondary Subtitle Delay: %.2fs Later";
+"osd.sub_second_delay.earlier" = "Retraso Secundario de Subtítulos: %.2fs Antes";
+"osd.sub_second_hidden" = "Subtítulos Secundarios Escondidos";
+"osd.sub_second_pos" = "Posición Secundaria de Subtítulos: %.1f";
+"osd.sub_second_visible" = "Subtítulos Secundarios Visibles";
 "osd.mute" = "Silenciar";
 "osd.unmute" = "No silenciar";
 "osd.screenshot" = "Captura de pantalla";
@@ -80,19 +124,21 @@
 "osd.find_online_sub" = "Buscando subtítulos en línea…";
 "osd.find_online_sub.source" = "desde";
 "osd.sub_not_found" = "No se encontraron subtítulos";
-"osd.sub_found" = "%d subtítulos encontrados. Descargando…";
+"osd.sub_found" = "Subtítulos %d encontrados.";
+"osd.sub_downloading" = "Descargando subtítulos %d";
 "osd.sub_downloaded" = "Subtítulos descargados";
 "osd.sub_saved" = "Subtítulo guardado";
 "osd.network_error" = "Error de red";
 "osd.file_error" = "Error al leer el archivo";
 "osd.cannot_login" = "No puedo iniciar sesión";
 "osd.canceled" = "Cancelado";
-"osd.cannot_connect" = "Cannot connect";
-"osd.timed_out" = "Timed Out";
+"osd.cannot_connect" = "No se puede conectar";
+"osd.timed_out" = "Tiempo agotado";
 "osd.filter_added" = "Filtro Añadido: %@";
 "osd.filter_removed" = "Filtro Eliminado";
-"osd.file_loop" = "Bucle de archivo: %@";
-"osd.playlist_loop" = "Bucle de lista de reproducción: %@";
+"osd.file_loop" = "Leer un solo fichero";
+"osd.playlist_loop" = "Repetir lista de reproducción";
+"osd.no_loop" = "Desactivar bucle";
 
 "preference.title" = "Preferencias";
 "preference.general" = "General";
@@ -115,14 +161,25 @@
 
 "preference.enable_adv_settings" = "Habilitar configuración avanzada";
 
+"preference.sub_override_level.force" = "fuerza";
+"preference.sub_override_level.scale" = "scale";
+"preference.sub_override_level.strip" = "tira";
+"preference.sub_override_level.yes" = "sí";
+
 "menu.volume" = "Volumen: %d";
 "menu.volume_muted" = "Volumen: %d (Silenciado)";
 "menu.audio_delay" = "Retraso de audio: %.2fs";
 "menu.sub_delay" = "Retraso de subtítulos: %.2fs";
+"menu.sub_hide" = "Ocultar Subtítulos";
+"menu.sub_show" = "Mostrar Subtítulos";
+"menu.sub_second_hide" = "Esconder Subtítulos Secundarios";
+"menu.sub_second_show" = "Mostrar Subtítulos Secundarios";
 "menu.fullscreen" = "Ver a pantalla completa";
 "menu.exit_fullscreen" = "Salir de pantalla completa";
 "menu.pip" = "Ver en picture in picture";
 "menu.exit_pip" = "Salir de picture in picture";
+"menu.mini_player" = "Entrar en modo música";
+"menu.exit_mini_player" = "Salir del modo de música";
 "menu.pause" = "Pausar";
 "menu.resume" = "Reanudar";
 "menu.speed" = "Velocidad: %.2fx";
@@ -148,10 +205,13 @@
 "menu.sub_delay_up" = "Retrasar subtítulos + %.1fs";
 "menu.sub_delay_down" = "Retrasar subtítulos - %.1fs";
 
-"menu.crop_custom" = "Personalizado...";
+"menu.crop_custom" = "Personalizado…";
 "menu.find_online_sub" = "Buscar subtítulos en línea desde %@";
 
+"track.audio" = "Audio";
 "track.none" = "<Ninguno>";
+"track.sub" = "Subtítulos";
+"track.video" = "Vídeo";
 
 "subtrack.no_loaded" = "No se cargaron subtítulos";
 "subtrack.no_external" = "No se encontraron subtítulos externos";
@@ -165,7 +225,6 @@
 
 "alert.fatal_error" = "Error fatal: %@ \nLa aplicación se cerrará ahora.";
 "alert.mpv_error" = "Error interno %@ (%@) al configurar la opción %@.";
-"alert.sleep" = "¡No se puede evitar que la pantalla entre en reposo! (0x%0X8)";
 
 "alert.unsupported_audio" = "Archivo de audio externo no compatible.";
 "alert.unsupported_sub" = "Subtítulo externo no compatible.";
@@ -183,11 +242,13 @@
 "alert.config.duplicate.title" = "Configuración duplicada";
 "alert.config.duplicate.message" = "Por favor, introduzca el nombre para el archivo de configuración duplicado.";
 "alert.config.empty_name" = "El nombre no puede estar vacío.";
-"alert.config.name_existing" = "El nombre ya existe.";
+"alert.config.name_existing" = "Ya existe una configuración con el mismo nombre.";
 "alert.config.file_existing.title" = "El archivo ya existe";
-"alert.config.file_existing.message" = "Esto no debería suceder. Seleccione Aceptar para sobrescribir, Cancelar para revelar el archivo en el Finder.";
+"alert.config.file_existing.message" = "Ya existe un archivo de configuración con el mismo nombre de archivo. Elija OK para mostrar el archivo en Finder.";
 "alert.config.cannot_create" = "¡No se puede crear el archivo de configuración!\n%@";
 "alert.config.cannot_write" = "¡No se puede escribir en el archivo de configuración!";
+"alert.config.rename.title" = "Rename Input Configuration";
+"alert.config.rename.message" = "Please enter the new name for the configuration.";
 
 "alert.filter.incorrect" = "Se produjo un error al configurar los filtros. Por favor, compruebe el formato de los parámetros.";
 "alert.add_filter.title" = "Nuevo filtro";
@@ -314,6 +375,7 @@
 "osc_toolbar.full_screen" = "Alternar pantalla completa";
 "osc_toolbar.music_mode" = "Entrar en modo música";
 "osc_toolbar.sub_track" = "Elegir la pista de subtítulos";
+"osc_toolbar.screenshot" = "Capturar pantalla";
 
 "mini_player.album_art" = "Alternar imagen de álbum";
 "mini_player.loop" = "Repetir";
@@ -355,7 +417,7 @@
 "permissions.video-overlay.name" = "Añadir superposición en vídeos";
 "permissions.video-overlay.desc" = "Este plugin puede representar contenido adicional en la parte superior del vídeo.";
 "permissions.file-system.name" = "Acceder al sistema de archivos";
-"permissions.file-system.desc" = "Este plugin puede leer o escribir archivos en su disco, incluyendo información confidencial. También puede llamar a otros programas o aplicaciones que puedan dañar su ordenador, así que asegúrese de verificar la fuente.";
+"permissions.file-system.desc" = "Este plugin puede leer o escribir archivos en su disco, incluyendo información confidencial. También puede llamar a otros programas o aplicaciones que pueden dañar su sistema, asegúrese de verificar la fuente.";
 
 "plugin.install" = "Instalar";
 "plugin.installed" = "Instalado";

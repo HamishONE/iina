@@ -2,7 +2,7 @@
 "0bT-f6-rXb.title" = "默认: 153600";
 
 /* Class = "NSTextFieldCell"; title = "Default cache size (KB):"; ObjectID = "0yu-5Q-363"; */
-"0yu-5Q-363.title" = "默认缓存大小 (KB):";
+"0yu-5Q-363.title" = "Maximum cache size (KB):";
 
 /* Class = "NSTextFieldCell"; title = "Custom youtube-dl path:"; ObjectID = "2qf-cC-Lfi"; */
 "2qf-cC-Lfi.title" = "自定义 youtube-dl 路径";
@@ -17,7 +17,7 @@
 "GBe-wd-tne.title" = "格式: <key>=<value>[,<key>=<value>[,…]]";
 
 /* Class = "NSTextFieldCell"; title = "Seconds to prefetch:"; ObjectID = "J96-32-M9A"; */
-"J96-32-M9A.title" = "预读秒数:";
+"J96-32-M9A.title" = "预读取秒数:";
 
 /* Class = "NSTextFieldCell"; title = "Cache:"; ObjectID = "LNk-io-MM7"; */
 "LNk-io-MM7.title" = "缓存:";
