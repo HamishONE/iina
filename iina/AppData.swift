@@ -52,7 +52,6 @@ struct AppData {
   static let crowdinMembersLink = "https://crowdin.com/project/iina"
   static let wikiLink = "https://github.com/iina/iina/wiki"
   static let websiteLink = "https://iina.io"
-  static let emailLink = "developers@iina.io"
   static let ytdlHelpLink = "https://github.com/rg3/youtube-dl/blob/master/README.md#readme"
   static let appcastLink = "https://www.iina.io/appcast.xml"
   static let appcastBetaLink = "https://www.iina.io/appcast-beta.xml"
@@ -64,6 +63,7 @@ struct AppData {
   static let algorithmHelpLink = "https://mpv.io/manual/stable/#options-tone-mapping"
   static let disableAnimationsHelpLink = "https://developer.apple.com/design/human-interface-guidelines/accessibility#Motion"
   static let gainAdjustmentHelpLink = "https://mpv.io/manual/stable/#options-replaygain"
+  static let audioDriverHellpLink = "https://mpv.io/manual/stable/#audio-output-drivers-coreaudio"
 
   static let widthWhenNoVideo = 640
   static let heightWhenNoVideo = 360
@@ -86,8 +86,6 @@ struct Constants {
     static let resume = NSLocalizedString("menu.resume", comment: "Resume")
     static let `default` = NSLocalizedString("quicksetting.item_default", comment: "Default")
     static let none = NSLocalizedString("quicksetting.item_none", comment: "None")
-    static let audioDelay = "Audio Delay"
-    static let subDelay = "Subtitle Delay"
     static let pip = NSLocalizedString("menu.pip", comment: "Enter Picture-in-Picture")
     static let exitPIP = NSLocalizedString("menu.exit_pip", comment: "Exit Picture-in-Picture")
     static let miniPlayer = NSLocalizedString("menu.mini_player", comment: "Enter Music Mode")
@@ -148,4 +146,9 @@ extension Notification.Name {
   static let iinaLogoutCompleted = Notification.Name("iinaLoggedOutOfSubtitleProvider")
   static let iinaSecondSubVisibilityChanged = Notification.Name("iinaSecondSubVisibilityChanged")
   static let iinaSubVisibilityChanged = Notification.Name("iinaSubVisibilityChanged")
+  static let iinaHistoryTaskFinished = Notification.Name("iinaHistoryTaskFinished")
+}
+
+enum IINAError: Error {
+  case unsupportedMPVNodeFormat(UInt32)
 }

@@ -10,7 +10,7 @@ import Cocoa
 import MediaPlayer
 import Sparkle
 
-let IINA_ENABLE_PLUGIN_SYSTEM = Preference.bool(for: .iinaEnablePluginSystem)
+let IINA_ENABLE_PLUGIN_SYSTEM = true
 
 /** Max time interval for repeated `application(_:openFile:)` calls. */
 fileprivate let OpenFileRepeatTime = TimeInterval(0.2)
@@ -411,10 +411,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     return false
   }
 
+  /// Returns a Boolean value that indicates if the app terminates once the last window closes.
+  ///
+  /// IINA will not quit when the last window is closed unless the `Quit after all windows are closed` setting is enabled.
+  /// - Note: When the welcome window is enabled this method will be called during the transition from showing the welcome
+  ///     window to playing media. This happens because the welcome window will be closed before the player window is opened as
+  ///     opening the player window is delayed until mpv reports the window size required. For this reason the state of the active
+  ///     player core must be checked as it could be preparing to open a window.
+  /// - Parameter sender: The application object whose last window was closed.
+  /// - Returns: `false` if the application should not be terminated when its last window is closed; otherwise, `true` to
+  ///     terminate the application.
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    guard PlayerCore.active.mainWindow.loaded || PlayerCore.active.initialWindow.loaded else { return false }
-    guard !PlayerCore.active.mainWindow.isWindowHidden else { return false }
-    return Preference.bool(for: .quitWhenNoOpenedWindow)
+    // If the user has not enabled the setting then no need to check anything else.
+    guard Preference.bool(for: .quitWhenNoOpenedWindow) else { return false }
+    let player = PlayerCore.active
+    guard !player.info.state.active else { return false }
+    guard player.mainWindow.loaded || player.initialWindow.loaded else { return false }
+    return !player.mainWindow.isWindowHidden
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -457,9 +470,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     // Check if there are any players that are not shutdown. If all players are already shutdown
     // then application termination can proceed immediately. This will happen if there is only one
-    // player and shutdown was initiated by typing "q" in the player window. That sends a quit
-    // command directly to mpv causing mpv and the player to shutdown before application
-    // termination is initiated.
+    // player and shutdown was initiated by sending a quit command directly to mpv through it's IPC
+    // interface causing mpv and the player to shutdown before application termination is initiated.
     allPlayersHaveShutdown = true
     for player in PlayerCore.playerCores {
       if player.info.state != .shutDown {
@@ -482,6 +494,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     if OnlineSubtitle.loggedIn {
       canTerminateNow = false
       Logger.log("Waiting for log out of online subtitles provider to complete")
+    }
+
+    if HistoryController.shared.tasksOutstanding != 0 {
+      canTerminateNow = false
+      Logger.log("Waiting for saving of playback history to complete")
     }
 
     // If the user pressed Q and mpv initiated the termination then players will already be
@@ -573,13 +590,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         // All players have shutdown.
         Logger.log("All players have shutdown")
       }
+      // If still logged in to subtitle providers then continue waiting.
       guard !OnlineSubtitle.loggedIn else { return }
-      // All players have shutdown. No longer logged into an online subtitles provider.
+      // If still still saving playback history then continue waiting.
+      guard HistoryController.shared.tasksOutstanding == 0 else { return }
+      // All players have shutdown. No longer logged into an online subtitles provider and saving of
+      // playback history has finished.
       Logger.log("Proceeding with application termination")
       // No longer need the timer that forces termination to proceed.
       timer.invalidate()
       // No longer need the observers for players stopping and shutting down, along with the
-      // observer for logout requests completing.
+      // observer for logout requests completing and saving of playback history finishing.
       ObjcUtils.silenced {
         observers.forEach {
           NotificationCenter.default.removeObserver($0)
@@ -622,6 +643,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
           level: .warning)
         return
       }
+      proceedWithTermination()
+    }
+    observers.append(observer)
+
+    // Establish an observer for saving of playback history finishing.
+    observer = center.addObserver(forName: .iinaHistoryTaskFinished, object: nil, queue: .main) { _ in
+      guard !self.timedOut else {
+        // Saving of playback history finished after IINA already timed out, gave up waiting, and
+        // told Cocoa to proceed with termination. This is a problem as it indicates playback
+        // history might be being lost.
+        Logger.log("Saving of playback history finished after application termination timed out",
+          level: .warning)
+        return
+      }
+      // If there are still tasks outstanding then must continue waiting.
+      guard HistoryController.shared.tasksOutstanding == 0 else { return }
+      Logger.log("Saving of playback history finished")
       proceedWithTermination()
     }
     observers.append(observer)
@@ -1011,7 +1049,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   ///
   /// For macOS Sonoma `sharedfilelistd` was changed to tie the list of recent documents to the app based on its certificate.
   /// if `sharedfilelistd` determines the list is being accessed by a different app then it clears the list. See issue
-  /// [#4688](https://github.com/iina/iina/issues/4688) for details.
+  /// [#4688](https://github.com/iina/iina/issues/4688) for details. Apple has now applied this change to macOS
+  /// Ventura as well.
   ///
   /// This new behavior does not cause a problem when the code is signed with IINA's certificate. However developer and nightly
   /// builds use an ad hoc certificate. This causes the list of recently opened files to be cleared each time a different unsigned IINA build
@@ -1020,7 +1059,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   ///
   /// If the following is true:
   /// - Workaround has been enabled by setting `enableRecentDocumentsWorkaround`
-  /// - Running under macOS Sonoma and above
+  /// - Running under macOS Ventura and above
   /// - Recording of recent files is enabled
   /// - The list in  [NSDocumentController.shared.recentDocumentURLs](https://developer.apple.com/documentation/appkit/nsdocumentcontroller/1514976-recentdocumenturls) is empty
   /// - The list in the IINA setting `recentDocuments` is not empty
@@ -1033,7 +1072,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   ///         `defaults write com.colliderli.iina enableRecentDocumentsWorkaround true`
   private func restoreRecentDocuments() {
     guard Preference.bool(for: .enableRecentDocumentsWorkaround),
-          #available(macOS 14, *), Preference.bool(for: .recordRecentFiles),
+          #available(macOS 13, *), Preference.bool(for: .recordRecentFiles),
           NSDocumentController.shared.recentDocumentURLs.isEmpty,
           let recentDocuments = Preference.array(for: .recentDocuments),
           !recentDocuments.isEmpty else { return }
@@ -1087,7 +1126,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
   /// `restoreRecentDocuments` and the issue [#4688](https://github.com/iina/iina/issues/4688) for more
   /// information..
   func saveRecentDocuments() {
-    guard Preference.bool(for: .enableRecentDocumentsWorkaround), #available(macOS 14, *) else { return }
+    guard Preference.bool(for: .enableRecentDocumentsWorkaround), #available(macOS 13, *) else { return }
     var recentDocuments: [Any] = []
     for document in NSDocumentController.shared.recentDocumentURLs {
       guard let bookmark = try? document.bookmarkData() else {

@@ -25,7 +25,7 @@ fileprivate extension NSPasteboard.PasteboardType {
   static let iinaPluginID = NSPasteboard.PasteboardType(rawValue: "com.colliderli.iina.pluginID")
 }
 
-class PrefPluginViewController: NSViewController, PreferenceWindowEmbeddable {
+class PrefPluginViewController: PreferenceViewController, PreferenceWindowEmbeddable {
   override var nibName: NSNib.Name {
     return NSNib.Name("PrefPluginViewController")
   }
@@ -35,14 +35,13 @@ class PrefPluginViewController: NSViewController, PreferenceWindowEmbeddable {
   }
 
   var preferenceTabImage: NSImage {
-    return NSImage(named: NSImage.Name("pref_general"))!
+    return makeSymbol("puzzlepiece.extension", fallbackImage: "pref_general")
   }
 
   var preferenceContentIsScrollable: Bool {
     return false
   }
 
-  var plugins: [JavascriptPlugin] = []
   var currentPlugin: JavascriptPlugin?
 
   @IBOutlet weak var tabView: NSTabView!

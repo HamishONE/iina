@@ -85,6 +85,9 @@ struct Preference {
     static let pauseWhenLeavingFullScreen = Key("pauseWhenLeavingFullScreen")
     static let pauseWhenGoesToSleep = Key("pauseWhenGoesToSleep")
 
+    static let autoRepeat = Key("autoRepeat")
+    static let defaultRepeatMode = Key("defaultRepeatMode")
+
     /** Show chapter pos in progress bar (bool) */
     static let showChapterPos = Key("showChapterPos")
 
@@ -168,6 +171,7 @@ struct Preference {
     static let toneMappingTargetPeak = Key("toneMappingTargetPeak")
     static let toneMappingAlgorithm = Key("toneMappingAlgorithm")
 
+    static let audioDriverEnableAVFoundation = Key("audioDriverEnableAVFoundation")
     static let audioThreads = Key("audioThreads")
     static let audioLanguage = Key("audioLanguage")
     static let maxVolume = Key("maxVolume")
@@ -196,6 +200,7 @@ struct Preference {
     static let subAutoLoadSearchPath = Key("subAutoLoadSearchPath")
     static let ignoreAssStyles = Key("ignoreAssStyles")
     static let subOverrideLevel = Key("subOverrideLevel")
+    static let secondarySubOverrideLevel = Key("secondarySubOverrideLevel")
     static let subTextFont = Key("subTextFont")
     static let subTextSize = Key("subTextSize")
     static let subTextColorString = Key("subTextColorString")
@@ -476,15 +481,17 @@ struct Preference {
     }
   }
 
-  /// Enum values for the IINA setting that corresponds to the `mpv`
-  /// [sub-ass-override](https://mpv.io/manual/stable/#options-sub-ass-override) option.
-  ///- Important: In order to preserve backward compatibility with enum values stored in user's settings `scale` was added to
-  ///    the end of the enumeration. This is why the constants are not ordered from least impactful to most impactful.
+  /// Enum values for the IINA settings that correspond to the `mpv`
+  /// [sub-ass-override](https://mpv.io/manual/stable/#options-sub-ass-override) and
+  /// [secondary-sub-ass-override](https://mpv.io/manual/stable/#options-secondary-sub-ass-override) options.
+  ///- Important: In order to preserve backward compatibility with enum values stored in user's settings `scale` and `no`were
+  ///     added to the end of the enumeration. This is why the constants are not ordered from least impactful to most impactful.
   enum SubOverrideLevel: Int, InitializingFromKey {
     case yes = 0
     case force
     case strip
     case scale
+    case no
 
     static var defaultValue = SubOverrideLevel.yes
 
@@ -499,6 +506,7 @@ struct Preference {
         case .force : return "force"
         case .strip: return "strip"
         case .scale: return "scale"
+        case .no: return "no"
         }
       }
     }
@@ -698,14 +706,19 @@ struct Preference {
     case screenshot
 
     func image() -> NSImage {
+      func makeSymbol(_ names: [String], _ fallbackImage: NSImage.Name) -> NSImage {
+        guard #available(macOS 14.0, *) else { return NSImage(named: fallbackImage)! }
+        let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        return NSImage.findSFSymbol(names, withConfiguration: configuration)
+      }
       switch self {
-      case .settings: return NSImage(named: NSImage.actionTemplateName)!
-      case .playlist: return #imageLiteral(resourceName: "playlist")
-      case .pip: return #imageLiteral(resourceName: "pip")
-      case .fullScreen: return #imageLiteral(resourceName: "fullscreen")
-      case .musicMode: return #imageLiteral(resourceName: "toggle-album-art")
-      case .subTrack: return #imageLiteral(resourceName: "sub-track")
-      case .screenshot: return #imageLiteral(resourceName: "screenshot")
+      case .settings: return makeSymbol(["gearshape"], NSImage.actionTemplateName)
+      case .playlist: return makeSymbol(["list.bullet"], "playlist")
+      case .pip: return makeSymbol(["pip.swap"], "pip")
+      case .fullScreen: return makeSymbol(["arrow.up.backward.and.arrow.down.forward.rectangle", "arrow.up.left.and.arrow.down.right"], "fullscreen")
+      case .musicMode: return makeSymbol(["music.note.list"], "toggle-album-art")
+      case .subTrack: return makeSymbol(["captions.bubble.fill"], "sub-track")
+      case .screenshot: return makeSymbol(["camera.shutter.button"], "screenshot")
       }
     }
 
@@ -750,6 +763,11 @@ struct Preference {
         }
       }
     }
+  }
+
+  enum DefaultRepeatMode: Int {
+    case playlist = 0
+    case file
   }
 
   // MARK: - Defaults
@@ -805,6 +823,9 @@ struct Preference {
     .playlistShowMetadata: true,
     .playlistShowMetadataInMusicMode: true,
 
+    .autoRepeat: false,
+    .defaultRepeatMode: DefaultRepeatMode.playlist.rawValue,
+
     .usePhysicalResolution: true,
     .initialWindowSizePosition: "",
     .resizeWindowTiming: ResizeWindowTiming.onlyWhenOpen.rawValue,
@@ -834,6 +855,7 @@ struct Preference {
     .enableToneMapping: false,
     .toneMappingTargetPeak: 0,
     .toneMappingAlgorithm: "auto",
+    .audioDriverEnableAVFoundation: false,
     .audioThreads: 0,
     .audioLanguage: "",
     .maxVolume: 100,
@@ -854,6 +876,7 @@ struct Preference {
     .subAutoLoadSearchPath: "./*",
     .ignoreAssStyles: false,
     .subOverrideLevel: SubOverrideLevel.strip.rawValue,
+    .secondarySubOverrideLevel: SubOverrideLevel.strip.rawValue,
     .subTextFont: "sans-serif",
     .subTextSize: Float(55),
     .subTextColorString: NSColor.white.usingColorSpace(.deviceRGB)!.mpvColorString,
