@@ -15,6 +15,22 @@ fileprivate let eqRenameMenuItemTag = -2
 fileprivate let eqSaveMenuItemTag = -3
 fileprivate let eqCustomMenuItemTag = 1000
 
+/// Formatter for `customSpeedTextField`.
+///
+/// Configure the number formatter in code instead of the XIB so it is easier to follow.
+fileprivate let speedFormatter: NumberFormatter = {
+  let fmt = NumberFormatter()
+  fmt.numberStyle = .decimal
+  fmt.usesGroupingSeparator = true
+  fmt.maximumSignificantDigits = 25  // just make very big
+  fmt.minimumFractionDigits = 0
+  fmt.maximumFractionDigits = 6  // matches mpv behavior
+  fmt.usesSignificantDigits = false
+  fmt.roundingMode = .halfDown   // matches mpv behavior
+  fmt.minimum = NSNumber(floatLiteral: AppData.mpvMinPlaybackSpeed)
+  return fmt
+}()
+
 class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, SidebarViewController {
   override var nibName: NSNib.Name {
     return NSNib.Name("QuickSettingViewController")
@@ -26,7 +42,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     case video
     case audio
     case sub
-    case plugin(id: String)
 
     init(buttonTag: Int) {
       self = [.video, .audio, .sub][at: buttonTag] ?? .video
@@ -41,11 +56,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       case "sub":
         self = .sub
       default:
-        if name.hasPrefix("plugin:") {
-          self = .plugin(id: String(name.dropFirst(7)))
-        } else {
-          return nil
-        }
+        self = .video
       }
     }
 
@@ -54,7 +65,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       case .video: return 0
       case .audio: return 1
       case .sub: return 2
-      default: return 3
       }
     }
 
@@ -63,12 +73,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       case .video: return "video"
       case .audio: return "audio"
       case .sub: return "sub"
-      case .plugin(let id): return "plugin:\(id)"
       }
-    }
-
-    static func == (lhs: TabViewType, rhs: TabViewType) -> Bool {
-      return lhs.name == rhs.name
     }
   }
 
@@ -93,7 +98,8 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   var observers: [NSObjectProtocol] = []
 
   @IBOutlet weak var videoTabScrollView: NSScrollView!
-  @IBOutlet weak var videoTabContentViewWidthConstraint: NSLayoutConstraint!
+  @IBOutlet weak var audioTabScrollView: NSScrollView!
+  @IBOutlet weak var subtitlesTabScrollView: NSScrollView!
 
   @IBOutlet weak var videoTabBtn: NSButton!
   @IBOutlet weak var audioTabBtn: NSButton!
@@ -130,6 +136,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBOutlet var speedSlider16xLabelPrevLabelConstraint: NSLayoutConstraint!
 
   @IBOutlet weak var customSpeedTextField: NSTextField!
+  @IBOutlet weak var speedResetBtn: NSButton!
   @IBOutlet weak var switchHorizontalLine: NSBox!
   @IBOutlet weak var switchHorizontalLine2: NSBox!
   @IBOutlet weak var hardwareDecodingSwitch: NSSwitch!
@@ -152,7 +159,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
   @IBOutlet weak var hideSwitch: NSSwitch!
   @IBOutlet weak var secHideSwitch: NSSwitch!
-  @IBOutlet weak var subLoadSementedControl: NSSegmentedControl!
+  @IBOutlet weak var subLoadSegmentedControl: NSSegmentedControl!
   @IBOutlet weak var subDelaySlider: NSSlider!
   @IBOutlet weak var subDelaySliderIndicator: NSTextField!
   @IBOutlet weak var subDelaySliderConstraint: NSLayoutConstraint!
@@ -182,13 +189,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBOutlet weak var subTextBgColorWell: NSColorWell!
   @IBOutlet weak var subTextFontBtn: NSButton!
 
-  @IBOutlet weak var pluginTabsView: NSView!
-  @IBOutlet weak var pluginTabsViewHeightConstraint: NSLayoutConstraint!
-  @IBOutlet weak var pluginTabsScrollView: NSScrollView!
-  @IBOutlet weak var pluginContentContainerView: NSView!
-  private var pluginTabsStackView: NSStackView!
-  private var pluginTabs: [String: SidebarTabView] = [:]
-
   private lazy var eqSliders: [NSSlider] = [audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
                                             audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10]
 
@@ -203,6 +203,12 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
   override func viewDidLoad() {
     super.viewDidLoad()
+
+    let tabScrollViews = [videoTabScrollView, audioTabScrollView, subtitlesTabScrollView]
+    for (view, item) in zip(tabScrollViews, tabView.tabViewItems) {
+      item.view = view
+    }
+
     withAllTableViews { (view, _) in
       view.delegate = self
       view.dataSource = self
@@ -212,7 +218,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     // colors
     withAllTableViews { tableView, _ in tableView.backgroundColor = NSColor(named: .sidebarTableBackground)! }
 
-    setupPluginTabs()
     if pendingSwitchRequest == nil {
       updateTabActiveStatus()
     } else {
@@ -220,11 +225,21 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       pendingSwitchRequest = nil
     }
 
-    subLoadSementedControl.image(forSegment: 1)?.isTemplate = true
+    speedResetBtn.toolTip = NSLocalizedString("quicksetting.reset_speed", comment: "Reset speed to 1x")
+
+    subLoadSegmentedControl.image(forSegment: 1)?.isTemplate = true
     switchHorizontalLine.wantsLayer = true
     switchHorizontalLine.layer?.opacity = 0.5
     switchHorizontalLine2.wantsLayer = true
     switchHorizontalLine2.layer?.opacity = 0.5
+
+    // Localize decimal format of numbers
+    speedSlider0_25xLabel.stringValue = "\(0.25.groupedStringUpTo6Decimals)x"
+    speedSlider1xLabel.stringValue = "1x"
+    speedSlider4xLabel.stringValue = "4x"
+    speedSlider16xLabel.stringValue = "16x"
+
+    customSpeedTextField.formatter = speedFormatter
 
     if let data = UserDefaults.standard.data(forKey: Preference.Key.userEQPresets.rawValue),
        let dict = try? JSONDecoder().decode(Dictionary<String, EQProfile>.self, from: data) {
@@ -304,7 +319,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       return
     }
 
-    // Deactive the layout constraints that will be replaced.
+    // Deactivate the layout constraints that will be replaced.
     NSLayoutConstraint.deactivate([
       speedSlider1xLabelCenterXConstraint,
       speedSlider4xLabelCenterXConstraint,
@@ -397,9 +412,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     hdrLabel.stringValue = NSLocalizedString("quicksetting.hdr", comment: "HDR")
 
     let speed = player.mpv.getDouble(MPVOption.PlaybackControl.speed)
-    customSpeedTextField.doubleValue = speed
-    speedSlider.doubleValue = convertSpeedToSliderValue(speed)
-    redraw(indicator: speedSliderIndicator, constraint: speedSliderConstraint, slider: speedSlider, value: "\(customSpeedTextField.stringValue)x")
+    updateSpeed(to: speed)
   }
 
   private func updateAudioTabControl() {
@@ -470,62 +483,10 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     }
   }
 
-  func setupPluginTabs() {
-    let container = NSView()
-    container.translatesAutoresizingMaskIntoConstraints = false
-    pluginTabsStackView = NSStackView()
-    pluginTabsStackView.translatesAutoresizingMaskIntoConstraints = false
-    pluginTabsStackView.alignment = .centerY
-    container.addSubview(pluginTabsStackView)
-    pluginTabsScrollView.documentView = container
-    Utility.quickConstraints(["H:|-8-[v]-8-|", "V:|-0-[v(==36)]-0-|"], ["v": pluginTabsStackView])
-    updatePluginTabs()
-  }
-
-  func updatePluginTabs() {
-    guard isViewLoaded else { return }
-    var added = false
-    pluginTabsStackView.arrangedSubviews.forEach {
-      pluginTabsStackView.removeArrangedSubview($0)
-    }
-    pluginTabs.removeAll()
-    player.plugins.forEach {
-      guard let name = $0.plugin.sidebarTabName else { return }
-      let tab = SidebarTabView()
-      tab.name = name
-      tab.pluginID = $0.plugin.identifier
-      tab.quickSettingsView = self
-      pluginTabsStackView.addArrangedSubview(tab.view)
-      pluginTabs[$0.plugin.identifier] = tab
-      added = true
-    }
-    pluginTabsView.isHidden = !added
-    pluginTabsViewHeightConstraint.constant = added ? 36 : 0
-    updateTabActiveStatus()
-  }
-
-  func removePluginTab(withIdentifier identifier: String) {
-    guard isViewLoaded else { return }
-    if case .plugin(let id) = currentTab {
-      if id == identifier {
-        switchToTab(.video)
-        pluginContentContainerView.subviews.forEach { $0.removeFromSuperview() }
-      }
-    } else {
-      pluginContentContainerView.subviews.forEach { $0.removeFromSuperview() }
-    }
-  }
-
   private func switchToTab(_ tab: TabViewType) {
     guard isViewLoaded else { return }
     currentTab = tab
     tabView.selectTabViewItem(at: tab.buttonTag)
-    if case .plugin(let id) = tab,
-       let plugin = player.plugins.first(where: { $0.plugin.identifier == id }) {
-      pluginContentContainerView.subviews.forEach { $0.removeFromSuperview() }
-      pluginContentContainerView.addSubview(plugin.sidebarTabView)
-      Utility.quickConstraints(["H:|-0-[v]-0-|", "V:|-0-[v]-0-|"], ["v": plugin.sidebarTabView])
-    }
     updateTabActiveStatus()
     reload()
   }
@@ -535,13 +496,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     [videoTabBtn, audioTabBtn, subTabBtn].forEach { btn in
       let isActive = currentTag == btn!.tag
       btn!.contentTintColor = isActive ? .sidebarTabTintActive : .sidebarTabTint
-    }
-    pluginTabs.values.forEach { tab in
-      if case .plugin(let id) = currentTab {
-        tab.isActive = tab.pluginID == id
-      } else {
-        tab.isActive = false
-      }
     }
   }
 
@@ -560,8 +514,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       subTableView.reloadData()
       secSubTableView.reloadData()
       updateSubTabControl()
-    case .plugin(_):
-      break
     }
   }
 
@@ -723,6 +675,10 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     view.layout()
   }
 
+  @IBAction func resetSpeedAction(_ sender: AnyObject) {
+    player.setSpeed(1.0)
+  }
+
   @IBAction func speedChangedAction(_ sender: NSSlider) {
     // Each step is 64^(1/24)
     //   0       1   ..    7      8      9   ..   24
@@ -735,25 +691,48 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       sender.allowsTickMarkValuesOnly = false
     }
     let sliderValue = sender.doubleValue
-    let value = AppData.minSpeed * pow(AppData.maxSpeed / AppData.minSpeed, sliderValue / sliderSteps)
-    customSpeedTextField.doubleValue = value
-    player.setSpeed(value)
-    redraw(indicator: speedSliderIndicator, constraint: speedSliderConstraint, slider: speedSlider, value: "\(customSpeedTextField.stringValue)x")
+    // Attempt to round speed to 2 decimal places. If user is using the slider, any more
+    // precision than that is just a distraction
+    let newSpeed = (AppData.minSpeed * pow(AppData.maxSpeed / AppData.minSpeed, sliderValue / sliderSteps)).roundedTo2Decimals()
+    updateSpeed(to: newSpeed)
   }
 
   @IBAction func customSpeedEditFinishedAction(_ sender: NSTextField) {
     if sender.stringValue.isEmpty {
       sender.stringValue = "1"
     }
-    let value = customSpeedTextField.doubleValue
-    speedSlider.doubleValue = convertSpeedToSliderValue(value)
-    if player.info.playSpeed != value {
-      player.setSpeed(value)
-    }
-    redraw(indicator: speedSliderIndicator, constraint: speedSliderConstraint, slider: speedSlider, value: "\(sender.stringValue)x")
+    /// Unfortunately, the text field has not applied validation/formatting to the number at this point.
+    /// We will do that manually via `constrainSpeed`.
+    updateSpeed(to: sender.doubleValue)
     if let window = sender.window {
       window.makeFirstResponder(window.contentView)
     }
+  }
+
+  /// Ensure that the given `Double` is a speed which is valid for mpv.
+  ///
+  /// - This is necessary because libmpv cannot be relied on to report the correct number & will reply
+  /// with a property change event which echoes the number which was submitted, even if it is not the
+  /// same as the number which mpv is actually using (it will internally round the number to 6 digits
+  /// after the decimal but tell us that it used the non-rounded number).
+  /// - `NumberFormatter` doesn't provide APIs to validate or correct an `NSNumber`.
+  /// But we can get the same effect by converting to a `String` and back again.
+  private func constrainSpeed(_ inputSpeed: Double) -> Double {
+    let newSpeedString: String = speedFormatter.string(from: inputSpeed as NSNumber) ?? "1"
+    return Double(truncating: speedFormatter.number(from: newSpeedString)!)
+  }
+
+  private func updateSpeed(to inputSpeed: Double) {
+    let newSpeed = constrainSpeed(inputSpeed)
+    speedSlider.doubleValue = convertSpeedToSliderValue(newSpeed)
+    customSpeedTextField.doubleValue = newSpeed
+    speedResetBtn.isHidden = newSpeed == 1.0
+    if player.info.playSpeed != newSpeed {
+      player.setSpeed(newSpeed)
+    }
+    /// Use `customSpeedTextField.stringValue` to take advantage of its formatter
+    /// (e.g. `16` will be displayed instead of `16.0`)
+    redraw(indicator: speedSliderIndicator, constraint: speedSliderConstraint, slider: speedSlider, value: "\(customSpeedTextField.stringValue)x")
   }
 
   @IBAction func equalizerSliderAction(_ sender: NSSlider) {
@@ -1071,8 +1050,9 @@ extension QuickSettingViewController: NSMenuDelegate {
         userEQs[inputString] = newProfile
         menuNeedsUpdate(eqPopUpButton.menu!)
         eqPopUpButton.select(findItem(inputString))
+        lastUsedProfileName = inputString
       } else {
-        eqPopUpButton.select(findItem(lastUsedProfileName))
+        eqPopUpButton.selectItem(withTag: eqCustomMenuItemTag)
       }
     case eqRenameMenuItemTag:
       if let inputString = promptAudioEQProfileName(isNewProfile: false) {
@@ -1080,6 +1060,7 @@ extension QuickSettingViewController: NSMenuDelegate {
         userEQs[inputString] = profile
         menuNeedsUpdate(eqPopUpButton.menu!)
         eqPopUpButton.select(findItem(inputString))
+        lastUsedProfileName = inputString
       } else {
         eqPopUpButton.select(findItem(lastUsedProfileName))
       }

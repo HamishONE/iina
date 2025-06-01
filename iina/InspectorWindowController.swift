@@ -171,7 +171,6 @@ class InspectorWindowController: NSWindowController, NSWindowDelegate, NSTableVi
           // in mpv 0.38, video-codec-name is an alias of current-tracks/video/codec, etc
           MPVProperty.currentTracksVideoCodec: self.vformatField,
           MPVProperty.currentTracksVideoCodecDesc: self.vcodecField,
-          MPVProperty.hwdecCurrent: self.vdecoderField,
           MPVProperty.containerFps: self.vfpsField,
           MPVProperty.currentVo: self.voField,
           MPVProperty.currentTracksAudioCodecDesc: self.acodecField,
@@ -235,6 +234,9 @@ class InspectorWindowController: NSWindowController, NSWindowDelegate, NSTableVi
       self.abitrateField.stringValue = FloatingPointByteCountFormatter.string(fromByteCount: abitrate) + "bps"
 
       let dynamicStrProperties: [String: NSTextField] = [
+        // At any point in time while the video is playing hardware decoding may fail causing a fall
+        // back to software decoding.
+        MPVProperty.hwdecCurrent: self.vdecoderField,
         MPVProperty.avsync: self.avsyncField,
         MPVProperty.totalAvsyncChange: self.totalAvsyncField,
         MPVProperty.frameDropCount: self.droppedFramesField,
@@ -260,8 +262,19 @@ class InspectorWindowController: NSWindowController, NSWindowDelegate, NSTableVi
       let player = PlayerCore.lastActive
       if player.mainWindow.loaded && player.info.state.loaded {
         if let colorspace = player.mainWindow.videoView.videoLayer.colorspace {
-          let isHdr = colorspace != VideoView.SRGB
-          self.vcolorspaceField.stringValue = "\(colorspace.name!) (\(isHdr ? "H" : "S")DR)"
+          let screenColorSpace = player.mainWindow.window?.screen?.colorSpace
+          let sdrColorSpace = screenColorSpace?.cgColorSpace ?? VideoView.SRGB
+          let isHdr = colorspace != sdrColorSpace
+          // Prefer the name of the CGColorSpace of the layer. If the CGColorSpace does not have a
+          // name then if the layer is set to the color space of the screen then fall back to the
+          // localized name on the NSColorSpace, if present. Otherwise report it as unspecified.
+          let name: String = {
+            if let name = colorspace.name { return name as String }
+            if let screenColorSpace, colorspace == screenColorSpace.cgColorSpace,
+               let name = screenColorSpace.localizedName { return name }
+            return "Unspecified"
+          }()
+          self.vcolorspaceField.stringValue = "\(name) (\(isHdr ? "H" : "S")DR)"
         } else {
           self.vcolorspaceField.stringValue = "Unspecified (SDR)"
         }

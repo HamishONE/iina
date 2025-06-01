@@ -7,6 +7,7 @@
 //
 
 #import "FFmpegController.h"
+#import <Accelerate/Accelerate.h>
 #import <Cocoa/Cocoa.h>
 
 #pragma clang diagnostic push
@@ -369,10 +370,28 @@ return -1;\
       duration = pFormatCtx->duration;
   }
 
+  // In addition to the duration IINA is interested metadata tags, especially the title tag. In many
+  // formats metadata is attached to the container itself. However in Ogg files metadata is attached
+  // to the stream. If the title tag is not found in the metadata from the container then search for
+  // an audio stream. If an audio stream with metadata containing a title tag is found then use the
+  // metadata from the stream instead of from the container. This addresses issue #5314.
+  AVDictionary *metadata = pFormatCtx->metadata;
+  if (av_dict_get(metadata, "title", NULL, 0) == NULL) {
+    ret = av_find_best_stream(pFormatCtx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
+    if (ret < 0) {
+      // Don't report an error when there isn't an audio stream.
+      if (ret != AVERROR_STREAM_NOT_FOUND) {
+        LOG_ERROR(@"Error when probing %@ to obtain best stream: %s (%d)", file, av_err2str(ret), ret);
+      }
+    } else if (av_dict_get(pFormatCtx->streams[ret]->metadata, "title", NULL, 0) != NULL) {
+      metadata = pFormatCtx->streams[ret]->metadata;
+    }
+  }
+
   NSMutableDictionary *info = [[NSMutableDictionary alloc] init];
   info[@"@iina_duration"] = duration == -1 ? [NSNumber numberWithInt:-1] : [NSNumber numberWithDouble:(double)duration / AV_TIME_BASE];
   AVDictionaryEntry *tag = NULL;
-  while ((tag = av_dict_get(pFormatCtx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+  while ((tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
     info[[NSString stringWithCString:tag->key encoding:NSUTF8StringEncoding]] = [NSString stringWithCString:tag->value encoding:NSUTF8StringEncoding];
 
   avformat_close_input(&pFormatCtx);
@@ -528,6 +547,7 @@ return -1;\
              pFrame->format);
       case AV_PIX_FMT_ARGB: // WebP with screenshot-webp-lossless mpv option enabled.
       case AV_PIX_FMT_RGB24: // JPEG XL SDR video.
+      case AV_PIX_FMT_RGBA64LE: // JPEG XL SDR video.
       case AV_PIX_FMT_YUV420P: // WebP default.
         pFrameRGB->format = AV_PIX_FMT_RGBA;
         bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
@@ -582,22 +602,22 @@ return -1;\
     const int bytesPerPixel = bitsPerPixel / 8;
 
     if (pFrameRGB->format == AV_PIX_FMT_RGBA64LE) {
-      // Apply the second part of the workaround for the FFmpeg scalar not supporting conversion to
-      // the pixel format AV_PIX_FMT_RGBAF16LE. Traverse the frame converting the pixel components
-      // to short floating point values.
       const int bytesPerComponent = bitsPerComponent / 8;
-      const int bytesPerRow = pFrameRGB->width * bytesPerPixel;
+
       // Each row of pixels in memory may contain extra padding for performance reasons. The
       // linesize gives the actual number of bytes each row consumes in the frame buffer.
       const int strideInBytes = pFrameRGB->linesize[0];
-      for (int rowOffset = 0; rowOffset < size; rowOffset += strideInBytes) {
-        // Convert each pixel component in the row.
-        for (int index = rowOffset; index < rowOffset + bytesPerRow; index += bytesPerComponent) {
-          uint16_t componentValue;
-          memcpy(&componentValue, &pFrameRGB->data[0][index], sizeof componentValue);
-          const _Float16 asFloat = (float)componentValue / USHRT_MAX;
-          memcpy(&pFrameRGB->data[0][index], &asFloat, sizeof asFloat);
-        }
+
+      // Apply the second part of the workaround for the FFmpeg scalar not supporting conversion to
+      // the pixel format AV_PIX_FMT_RGBAF16LE. Convert the pixel components to short floating point
+      // values. This is an in-place conversion, which is supported by vImageConvert_16Uto16F, so
+      // only one buffer is used.
+      const vImage_Buffer buffer = {.width = pFrameRGB->width * bytesPerPixel / bytesPerComponent,
+        .height = pFrameRGB->height, .rowBytes = strideInBytes, .data = pFrameRGB->data[0]};
+      const vImage_Error error = vImageConvert_16Uto16F(&buffer, &buffer, kvImageNoFlags);
+      if (error != kvImageNoError) {
+        LOG_ERROR(@"Method vImageConvert_16Uto16F failed: %ld", error);
+        return NULL;
       }
     }
 
@@ -613,23 +633,43 @@ return -1;\
         cgColorSpace = CGColorSpaceCreateDeviceRGB();
         break;
       case AVCOL_PRI_BT2020:
-        if (@available(macOS 11.0, *)) {
-          cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2100_PQ);
-        } else if (@available(macOS 10.15.4, *)) {
-            cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020_PQ);
-        } else if (@available(macOS 10.14.6, *)) {
-            cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020_PQ_EOTF);
-        } else {
-          cgColorSpace = CGColorSpaceCreateDeviceRGB();
+        switch (pFrame->color_trc) {
+          default:
+            cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020);
+            break;
+          case AVCOL_TRC_ARIB_STD_B67:
+            if (@available(macOS 11.0, *)) {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2100_HLG);
+            } else if (@available(macOS 10.15.6, *)) {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020_HLG);
+            } else {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020);
+            }
+            break;
+          case AVCOL_TRC_SMPTE2084:
+            if (@available(macOS 11.0, *)) {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2100_PQ);
+            } else if (@available(macOS 10.15.4, *)) {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020_PQ);
+            } else {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020_PQ_EOTF);
+            }
         }
         break;
       case AVCOL_PRI_SMPTE432:
-        if (@available(macOS 10.15.4, *)) {
-          cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_PQ);
-        } else if (@available(macOS 10.14.6, *)) {
-          cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_PQ_EOTF);
-        } else {
-          cgColorSpace = CGColorSpaceCreateDeviceRGB();
+        switch (pFrame->color_trc) {
+          default:
+            cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3);
+            break;
+          case AVCOL_TRC_ARIB_STD_B67:
+            cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_HLG);
+            break;
+          case AVCOL_TRC_SMPTE2084:
+            if (@available(macOS 10.15.4, *)) {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_PQ);
+            } else {
+              cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3_PQ_EOTF);
+            }
         }
     }
     if (!cgColorSpace) {

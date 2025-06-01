@@ -7,6 +7,7 @@
 //
 
 import Cocoa
+import UniformTypeIdentifiers
 
 typealias PK = Preference.Key
 
@@ -35,7 +36,7 @@ class Utility {
   typealias InputValidator<T> = (T) -> ValidationResult
 
   // MARK: - Logs, alerts
-  static func showAlert(_ key: String, comment: String? = nil, arguments: [CVarArg]? = nil, style: NSAlert.Style = .critical, sheetWindow: NSWindow? = nil, suppressionKey: PK? = nil) {
+  static func showAlert(_ key: String, comment: String? = nil, arguments: [CVarArg]? = nil, style: NSAlert.Style = .critical, sheetWindow: NSWindow? = nil, suppressionKey: PK? = nil, disableMenus: Bool = false) {
     let alert = NSAlert()
     if let suppressionKey = suppressionKey {
       // This alert includes a suppression button that allows the user to suppress the alert.
@@ -69,10 +70,21 @@ class Utility {
     }
 
     alert.alertStyle = style
+
+    // If an alert occurs early during startup when the first player core is being created then
+    // menus must be disabled while the alert is shown as opening certain menus will cause the menu
+    // controller to attempt to access the player core while it is being initialized resulting in a
+    // crash. See issue #5250.
+    if disableMenus {
+      AppDelegate.shared.menuController.disableAllMenus()
+    }
     if let sheetWindow = sheetWindow {
       alert.beginSheetModal(for: sheetWindow)
     } else {
       alert.runModal()
+    }
+    if disableMenus {
+      AppDelegate.shared.menuController.enableAllMenus()
     }
 
     // If the user asked for this alert to be suppressed set the associated preference.
@@ -231,10 +243,15 @@ class Utility {
     input.lineBreakMode = .byClipping
     input.usesSingleLineMode = true
     input.cell?.isScrollable = true
+    input.isBezeled = true
+    input.bezelStyle = .roundedBezel
+    if #available(macOS 11.0, *) {
+      input.controlSize = .large
+    }
     if let inputValue = inputValue {
       input.stringValue = inputValue
     }
-    let stackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 240, height: 20))
+    let stackView = NSStackView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
     stackView.orientation = .vertical
     stackView.alignment = .centerX
     stackView.addArrangedSubview(input)
@@ -251,7 +268,7 @@ class Utility {
       label.textColor = .secondaryLabelColor
       label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
       stackView.addArrangedSubview(label)
-      stackView.frame = NSRect(x: 0, y: 0, width: 240, height: 42)
+      stackView.frame = NSRect(x: 0, y: 0, width: 240, height: 54)
 
       let validateInput = {
         switch validator(input.stringValue) {
@@ -520,7 +537,7 @@ class Utility {
     return contents.filter { $0.creationDate != nil }.max { $0.creationDate! < $1.creationDate! }
   }
 
-  /// Make sure the block is executed on the main thread. Be careful since it uses `sync`. Keep the block mininal.
+  /// Make sure the block is executed on the main thread. Be careful since it uses `sync`. Keep the block minimal.
   @discardableResult
   static func executeOnMainThread<T>(block: () -> T) -> T {
     if Thread.isMainThread {
@@ -531,6 +548,19 @@ class Utility {
       }
     }
   }
+
+  static func icon(for url: URL) -> NSImage {
+    if #available(macOS 11.0, *) {
+      if let uttype = UTType.types(tag: url.pathExtension, tagClass: .filenameExtension, conformingTo: nil).first {
+        return NSWorkspace.shared.icon(for: uttype)
+      } else {
+        return NSWorkspace.shared.icon(for: .data)
+      }
+    } else {
+      return NSWorkspace.shared.icon(forFileType: url.pathExtension)
+    }
+  }
+
 
   // MARK: - Util classes
 

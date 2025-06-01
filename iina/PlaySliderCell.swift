@@ -46,32 +46,45 @@ class PlaySliderCell: NSSliderCell {
   // MARK:- Displaying the Cell
 
   override func drawKnob(_ knobRect: NSRect) {
+    let isLightTheme = !controlView!.window!.effectiveAppearance.isDark
+    if isLightTheme {
+      drawKnobWithShadow(knobRect: knobRect)
+    } else {
+      drawKnobOnly(knobRect: knobRect)
+    }
+  }
+
+  @discardableResult
+  private func drawKnobOnly(knobRect: NSRect) -> NSBezierPath {
     // Round the X position for cleaner drawing
     let rect = NSMakeRect(round(knobRect.origin.x),
                           knobRect.origin.y + 0.5 * (knobRect.height - knobHeight),
                           knobRect.width,
                           knobHeight)
-    let isLightTheme = !controlView!.window!.effectiveAppearance.isDark
-
-    if isLightTheme {
-      NSGraphicsContext.saveGraphicsState()
-      let shadow = NSShadow()
-      shadow.shadowBlurRadius = 1
-      shadow.shadowColor = .controlShadowColor
-      shadow.shadowOffset = NSSize(width: 0, height: -0.5)
-      shadow.set()
-    }
 
     let path = NSBezierPath(roundedRect: rect, xRadius: knobRadius, yRadius: knobRadius)
     (isHighlighted ? knobActiveColor : knobColor).setFill()
     path.fill()
+    return path
+  }
 
-    if isLightTheme {
+  private func drawKnobWithShadow(knobRect: NSRect) {
+    NSGraphicsContext.saveGraphicsState()
+
+    let shadow = NSShadow()
+    shadow.shadowBlurRadius = 1
+    shadow.shadowOffset = NSSize(width: 0, height: -0.5)
+    shadow.set()
+
+    let path = drawKnobOnly(knobRect: knobRect)
+
+    /// According to Apple's docs for `NSShadow`: `The default shadow color is black with an alpha of 1/3`
+    if let shadowColor = shadow.shadowColor {
       path.lineWidth = 0.4
-      NSColor.controlShadowColor.setStroke()
+      shadowColor.setStroke()
       path.stroke()
-      NSGraphicsContext.restoreGraphicsState()
     }
+    NSGraphicsContext.restoreGraphicsState()
   }
 
   override func knobRect(flipped: Bool) -> NSRect {
@@ -146,7 +159,9 @@ class PlaySliderCell: NSSliderCell {
     // draw chapters
     NSGraphicsContext.saveGraphicsState()
     if drawChapters {
-      if let totalSec = info.videoDuration?.second {
+      // When streaming if the audio stream is changed mpv will momentarily reset the video duration
+      // to zero. Not useful to draw the chapter marks when the duration is unknown.
+      if let totalSec = info.videoDuration?.second, totalSec != 0 {
         chapterStrokeColor.setStroke()
         let chapters = info.chapters
         if chapters.count > 1 {

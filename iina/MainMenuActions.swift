@@ -31,10 +31,11 @@ class MainMenuActionHandler: NSResponder, NSMenuItemValidation {
     Utility.quickSavePanel(title: "Save to playlist", types: ["m3u8"], sheetWindow: player.currentWindow) { (url) in
       if url.isFileURL {
         var playlist = ""
-        for item in self.player.info.playlist {
-          playlist.append((item.filename + "\n"))
+        self.player.info.$playlist.withLock {
+          for item in $0 {
+            playlist.append((item.filename + "\n"))
+          }
         }
-
         do {
           try playlist.write(to: url, atomically: true, encoding: String.Encoding.utf8)
         } catch let error as NSError {
@@ -67,7 +68,7 @@ class MainMenuActionHandler: NSResponder, NSMenuItemValidation {
 
   // currently only being used for key command
   @objc func menuDeleteCurrentFileHard(_ sender: NSMenuItem) {
-    guard let url = player.info.currentURL else { return }
+    guard let url = player.info.currentURL, !player.info.isNetworkResource else { return }
     do {
       let index = player.mpv.getInt(MPVProperty.playlistPos)
       player.playlistRemove(index)
@@ -93,8 +94,8 @@ extension MainMenuActionHandler {
 
   @objc func menuStop(_ sender: NSMenuItem) {
     // FIXME: handle stop
-    player.stop()
     player.sendOSD(.stop)
+    player.stop()
   }
 
   @objc func menuStep(_ sender: NSMenuItem) {
@@ -136,6 +137,8 @@ extension MainMenuActionHandler {
   }
 
   @objc func menuJumpTo(_ sender: NSMenuItem) {
+    // Make certain the cached video position in the playback info is up to date.
+    player.syncUI(.time)
     Utility.quickPromptPanel("jump_to", inputValue: self.player.info.videoPosition?.stringRepresentationWithPrecision(3)) { input in
       if let vt = VideoTime(input) {
         self.player.seek(absoluteSecond: vt.second)
@@ -480,9 +483,38 @@ extension MainMenuActionHandler {
 
   // MARK: - Plugin
 
+  @objc func showPluginsPanel(_ sender: NSMenuItem) {
+    player.mainWindow.showPluginSidebar(tab: nil)
+  }
+
   @objc func reloadAllPlugins(_ sender: NSMenuItem) {
-    for plugin in JavascriptPlugin.plugins {
-      player.reloadPlugin(plugin, forced: true)
+    // Remove the developer tool menu item that retains the plugin instance
+    AppDelegate.shared.menuController.pluginMenu.items
+      .compactMap { $0.submenu }.flatMap { $0.items }
+      .forEach { $0.representedObject = nil }
+    AppDelegate.shared.menuController.pluginMenu.removeAllItems()
+
+    for player in PlayerCore.playerCores {
+      player.clearPlugins()
+    }
+
+    JavascriptPlugin.recreateAllPlugins()
+    JavascriptPlugin.loadGlobalInstances()
+
+    for player in PlayerCore.playerCores {
+      for plugin in JavascriptPlugin.plugins {
+        player.reloadPlugin(plugin, forced: true)
+      }
+      // Try to emit the events that are already emitted.
+      // Of course this is not exhaustive, so users shouldn't rely on this function
+      if player.mainWindow.loaded {
+        player.events.emit(.windowLoaded)
+      }
+      player.events.emit(.mpvInitialized)
+      if player.info.state == .playing {
+        player.events.emit(.fileLoaded)
+        player.events.emit(.fileStarted)
+      }
     }
   }
 }

@@ -10,7 +10,22 @@ import Cocoa
 import CryptoKit
 
 extension NSSlider {
-  /** Returns the position of knob center by point */
+  /**
+   Returns the position of the knob's center point along the slider's track.
+
+   This method calculates the horizontal position of the center of the slider's knob based on the slider's current value (`doubleValue`), the minimum and maximum values, and the slider's dimensions. It can be useful for custom drawing, animations, or hit detection related to the knob's position.
+
+   - Returns: A `CGFloat` representing the x-coordinate of the knob's center along the slider's width.
+
+   - Important: Ensure that the slider's `maxValue` is greater than `minValue`. An assertion is used to validate this.
+
+   Example usage:
+   ```swift
+   let slider = NSSlider(value: 50, minValue: 0, maxValue: 100, target: nil, action: nil)
+   let knobPosition = slider.knobPointPosition()
+   print("The knob is positioned at x-coordinate: \(knobPosition)")
+   ```
+   */
   func knobPointPosition() -> CGFloat {
     let sliderOrigin = frame.origin.x + knobThickness / 2
     let sliderWidth = frame.width - knobThickness
@@ -21,7 +36,22 @@ extension NSSlider {
 }
 
 extension CGPoint {
-  // Uses Pythagorean theorem to calculate the distance between two points
+  /**
+   Uses the Pythagorean theorem to calculate the distance between two points.
+
+   This method calculates the straight-line distance (Euclidean distance) between the current point and another `CGPoint`. It is useful for measuring distances in a two-dimensional coordinate system, such as when working with points on a canvas or in a graphics context.
+
+   - Parameter to: The target `CGPoint` to which the distance will be calculated.
+   - Returns: A `CGFloat` representing the distance between the two points.
+
+   Example usage:
+   ```swift
+   let pointA = CGPoint(x: 0, y: 0)
+   let pointB = CGPoint(x: 3, y: 4)
+   let distance = pointA.distance(to: pointB)
+   print("Distance between pointA and pointB is \(distance)")  // Output: 5.0
+   ```
+   */
   func distance(to: CGPoint) -> CGFloat {
     return sqrt(pow(self.x - to.x, 2) + pow(self.y - to.y, 2))
   }
@@ -29,6 +59,13 @@ extension CGPoint {
 
 extension NSSize {
 
+  /**
+   Returns the aspect ratio (width divided by height) of the size.
+
+   This property asserts that neither width nor height is zero, and then calculates the aspect ratio.
+
+   - Returns: The aspect ratio of the size as a `CGFloat`.
+   */
   var aspect: CGFloat {
     get {
       assert(width != 0 && height != 0)
@@ -36,27 +73,47 @@ extension NSSize {
     }
   }
 
-  /** Resize to no smaller than a min size while keeping same aspect */
+  /**
+   Resizes the current size to be no smaller than a given minimum size while maintaining the same aspect ratio.
+
+   This method checks if the current size is already larger than the given minimum size, and if not, it resizes the current size to the minimum size, preserving the aspect ratio.
+
+   - Parameter minSize: The minimum size that the current size should satisfy.
+   - Returns: The resized `NSSize` that satisfies the minimum size requirement while keeping the same aspect ratio.
+   */
   func satisfyMinSizeWithSameAspectRatio(_ minSize: NSSize) -> NSSize {
-    if width >= minSize.width && height >= minSize.height {  // no need to resize if larger
+    if width >= minSize.width && height >= minSize.height {
       return self
     } else {
       return grow(toSize: minSize)
     }
   }
 
-  /** Resize to no larger than a max size while keeping same aspect */
+  /**
+   Resizes the current size to be no larger than a given maximum size while maintaining the same aspect ratio.
+
+   This method checks if the current size is already smaller than the given maximum size, and if not, it resizes the current size to the maximum size, preserving the aspect ratio.
+
+   - Parameter maxSize: The maximum size that the current size should satisfy.
+   - Returns: The resized `NSSize` that satisfies the maximum size requirement while keeping the same aspect ratio.
+   */
   func satisfyMaxSizeWithSameAspectRatio(_ maxSize: NSSize) -> NSSize {
-    if width <= maxSize.width && height <= maxSize.height {  // no need to resize if smaller
+    if width <= maxSize.width && height <= maxSize.height {
       return self
     } else {
       return shrink(toSize: maxSize)
     }
   }
 
+  /**
+   Crops the current size to fit within a target aspect ratio, reducing either the width or height to match the aspect ratio of the target rectangle.
+
+   - Parameter aspectRect: A rectangle or size structure that contains the desired aspect ratio.
+   - Returns: The cropped `NSSize` that fits within the given aspect ratio.
+   */
   func crop(withAspect aspectRect: Aspect) -> NSSize {
     let targetAspect = aspectRect.value
-    if aspect > targetAspect {  // self is wider, crop width, use same height
+    if aspect > targetAspect {
       return NSSize(width: height * targetAspect, height: height)
     } else {
       return NSSize(width: width, height: width / targetAspect)
@@ -120,18 +177,61 @@ extension NSSize {
       return NSSize(width: size.width, height: size.width / aspect)
     }
   }
+  /**
+   Returns a `NSRect` that represents the size centered within the given `NSRect`.
 
+   This method calculates a new rectangle (`NSRect`) where the current size (`NSSize`) is centered inside the provided rectangle (`rect`). It is useful when you need to center one view or size within another, maintaining its dimensions.
+
+   - Parameter rect: The rectangle within which to center the current size.
+   - Returns: A `NSRect` where the current size is centered inside the given rectangle.
+
+   Example usage:
+   ```swift
+   let size = NSSize(width: 100, height: 50)
+   let containerRect = NSRect(x: 0, y: 0, width: 300, height: 200)
+   let centeredRect = size.centeredRect(in: containerRect)
+   print(centeredRect)  // Output: NSRect(x: 100.0, y: 75.0, width: 100.0, height: 50.0)
+   ```
+   */
   func centeredRect(in rect: NSRect) -> NSRect {
     return NSRect(x: rect.origin.x + (rect.width - width) / 2,
                   y: rect.origin.y + (rect.height - height) / 2,
                   width: width,
                   height: height)
   }
+  /**
+   Multiplies both the width and height of the current size by a given multiplier.
 
+   This method returns a new `NSSize` where both the width and height are scaled by the given multiplier. It is useful for proportionally resizing an object.
+
+   - Parameter multiplier: The multiplier used to scale both width and height.
+   - Returns: A new `NSSize` with the dimensions scaled by the multiplier.
+
+   Example usage:
+   ```swift
+   let size = NSSize(width: 100, height: 50)
+   let scaledSize = size.multiply(2.0)
+   print(scaledSize)  // Output: NSSize(width: 200.0, height: 100.0)
+   ```
+   */
   func multiply(_ multiplier: CGFloat) -> NSSize {
     return NSSize(width: width * multiplier, height: height * multiplier)
   }
+  /**
+   Adds a given value to both the width and height of the current size.
 
+   This method returns a new `NSSize` where the provided value is added to both the width and height. It is useful for increasing the size by a fixed amount.
+
+   - Parameter value: The value to be added to both the width and height.
+   - Returns: A new `NSSize` with the increased dimensions.
+
+   Example usage:
+   ```swift
+   let size = NSSize(width: 100, height: 50)
+   let newSize = size.add(10)
+   print(newSize)  // Output: NSSize(width: 110.0, height: 60.0)
+   ```
+   */
   func add(_ value: CGFloat) -> NSSize {
     return NSSize(width: width + value, height: height + value)
   }
@@ -227,6 +327,44 @@ extension Double {
       return "\(rounded)"
     }
   }
+
+  /// Returns this value rounded half down to an integral value.
+  ///
+  /// For example 0.5 will be rounded to 0.0, 0.51 will be rounded to 1.0.
+  /// - Note: This method is needed because at this time the Swift
+  ///     [rounded](https://developer.apple.com/documentation/swift/double/rounded(_:)) method does not
+  ///     support a [rounding rule](https://developer.apple.com/documentation/swift/floatingpointroundingrule)
+  ///     for [rounding half down](https://en.wikipedia.org/wiki/Rounding#Rounding_half_down).
+  /// - Returns: The integral value found by rounding this value.
+  func roundedHalfDown() -> Double {
+    let floor = floor(self)
+    return self <= floor + 0.5 ? floor : ceil(self)
+  }
+
+  func roundedTo2Decimals() -> Double {
+    let scaledUp = self * 1e2
+    let scaledUpRounded = scaledUp.rounded(.up)
+    let finalVal = scaledUpRounded / 1e2
+    return finalVal
+  }
+  
+  /// Formats this number as a decimal string, using the default locale.
+  ///
+  /// This should be used in most places where decimal numbers need to be printed. Do not rely on string interpolation alone
+  /// because the number will not be localized.
+  ///
+  /// For example, if the user's locale formats numbers like `1.234.567,89` (in particular, using
+  /// a comma to signify the decimal):
+  /// ```
+  /// let num: Double = 12.34
+  /// let badStr = "Value is \(num)"                                // badStr will *always* be "Value is 12.34"
+  /// let goodStr = "Value is \(num.groupedStringUpTo6Decimals)"  // goodStr will be "Value is 12,34"
+  /// ```
+  ///
+  /// Currently the output string is limited to 6 digits after the decimal. This matches the precision used by mpv's APIs.
+  var groupedStringUpTo6Decimals: String {
+    return fmtDecimalGroupingMaxFractionDigits6.string(from: self as NSNumber) ?? "NaN"
+  }
 }
 
 extension Comparable {
@@ -247,6 +385,20 @@ fileprivate let fmtDecimalMaxFractionDigits2: NumberFormatter = {
   fmt.numberStyle = .decimal
   fmt.usesGroupingSeparator = false
   fmt.maximumFractionDigits = 2
+  return fmt
+}()
+
+/// Formatter for `Double`.
+/// - Displays up to 6 digits after the decimal before rounding.
+/// - Omits trailing zeroes.
+/// - Uses grouping separator (e.g. comma) for large numbers.
+fileprivate let fmtDecimalGroupingMaxFractionDigits6: NumberFormatter = {
+  let fmt = NumberFormatter()
+  fmt.numberStyle = .decimal
+  fmt.usesGroupingSeparator = true
+  fmt.minimumFractionDigits = 0
+  fmt.maximumFractionDigits = 6
+  fmt.usesSignificantDigits = false
   return fmt
 }()
 
@@ -303,9 +455,13 @@ extension Data {
     }
   }
 
-  init<T>(bytesOf thing: T) {
-    var copyOfThing = thing // Hopefully CoW?
-    self.init(bytes: &copyOfThing, count: MemoryLayout.size(ofValue: thing))
+  init<T: BitwiseCopyable>(bytesOf thing: T) {
+    var mutableThing = thing
+    self.init(bytes: &mutableThing, count: MemoryLayout<T>.size)
+  }
+  
+  init<T: BitwiseCopyable>(bytesOf thing: [T]) {
+    self.init(bytes: thing, count: MemoryLayout<T>.size * thing.count)
   }
   
   func saveToFolder(_ url: URL, filename: String) -> URL? {
@@ -490,7 +646,7 @@ extension NSImage {
   /// older systems (macOS 13 and below), because SF Symbols are not complete enough for our usage, we don't use them at all.
   /// If a better symbol is found in a later release of SF Symbol, place it at the first of the name list, so that IINA running
   /// on the latest version of macOS can make use of it; IINA running on a older version of macOS will fallback to a symbol
-  /// in a previous release of SF Symbol. But the list of name must contain a symbol which is avaliable in macOS 14 (SF Symbol 5).
+  /// in a previous release of SF Symbol. But the list of name must contain a symbol which is available in macOS 14 (SF Symbol 5).
   ///
   /// - Parameters:
   ///   - names: A list name of the SF Symbol. The name requires higher SF Symbol version must be at front, with fallback SF Symbol
@@ -500,8 +656,8 @@ extension NSImage {
   static func findSFSymbol(_ names: [String], withConfiguration configuration: NSImage.SymbolConfiguration? = nil) -> NSImage {
     for name in names {
       if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
-        if let configuration, let configed = symbol.withSymbolConfiguration(configuration) {
-          return configed
+        if let configuration, let configured = symbol.withSymbolConfiguration(configuration) {
+          return configured
         }
         return symbol
       }
@@ -563,6 +719,24 @@ extension NSAppearance {
   var isDark: Bool {
     return name == .darkAqua || name == .vibrantDark || name == .accessibilityHighContrastDarkAqua || name == .accessibilityHighContrastVibrantDark
   }
+
+  // Performs the given closure with this appearance by temporarily making this the current appearance.
+  func applyAppearanceFor<T>(_ closure: ()  -> T) -> T {
+    if #available(macOS 11.0, *) {
+      var result: T?
+      self.performAsCurrentDrawingAppearance {
+        result = closure()
+      }
+      return result!
+    } else {
+      let previousAppearance = NSAppearance.current
+      NSAppearance.current = self
+      defer {
+        NSAppearance.current = previousAppearance
+      }
+      return closure()
+    }
+  }
 }
 
 extension NSScreen {
@@ -601,7 +775,7 @@ extension NSWindow {
   /// This method searches for a screen to use in this order:
   /// - `window!.screen` The screen where most of the window is on; it is `nil` when the window is offscreen.
   /// - `NSScreen.main` The screen containing the window that is currently receiving keyboard events.
-  /// - `NSScreeen.screens[0]` The primary screen of the user’s system.
+  /// - `NSScreen.screens[0]` The primary screen of the user’s system.
   ///
   /// `PlayerCore` caches players along with their windows. This window may have been previously used on an external monitor
   /// that is no longer attached. In that case the `screen` property of the window will be `nil`.  Apple documentation is silent

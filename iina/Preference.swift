@@ -493,7 +493,7 @@ struct Preference {
     case scale
     case no
 
-    static var defaultValue = SubOverrideLevel.yes
+    static var defaultValue = SubOverrideLevel.scale
 
     init?(key: Key) {
       self.init(rawValue: Preference.integer(for: key))
@@ -704,6 +704,7 @@ struct Preference {
     case musicMode
     case subTrack
     case screenshot
+    case plugins
 
     func image() -> NSImage {
       func makeSymbol(_ names: [String], _ fallbackImage: NSImage.Name) -> NSImage {
@@ -713,12 +714,13 @@ struct Preference {
       }
       switch self {
       case .settings: return makeSymbol(["gearshape"], NSImage.actionTemplateName)
-      case .playlist: return makeSymbol(["list.bullet"], "playlist")
+      case .playlist: return makeSymbol(["list.bullet.rectangle", "list.bullet"], "playlist")
       case .pip: return makeSymbol(["pip.swap"], "pip")
       case .fullScreen: return makeSymbol(["arrow.up.backward.and.arrow.down.forward.rectangle", "arrow.up.left.and.arrow.down.right"], "fullscreen")
-      case .musicMode: return makeSymbol(["music.note.list"], "toggle-album-art")
+      case .musicMode: return makeSymbol(["music.microphone", "music.mic"], "toggle-album-art")
       case .subTrack: return makeSymbol(["captions.bubble.fill"], "sub-track")
       case .screenshot: return makeSymbol(["camera.shutter.button"], "screenshot")
+      case .plugins: return makeSymbol(["puzzlepiece.extension"], "puzzlepiece.extension")
       }
     }
 
@@ -732,6 +734,7 @@ struct Preference {
       case .musicMode: key = "music_mode"
       case .subTrack: key = "sub_track"
       case .screenshot: key = "screenshot"
+      case .plugins: key = "plugins"
       }
       return NSLocalizedString("osc_toolbar.\(key)", comment: key)
     }
@@ -785,7 +788,7 @@ struct Preference {
     .controlBarStickToCenter: true,
     .controlBarAutoHideTimeout: Float(2.5),
     .enableControlBarAutoHide: true,
-    .controlBarToolbarButtons: [ToolBarButton.pip.rawValue, ToolBarButton.playlist.rawValue, ToolBarButton.settings.rawValue],
+    .controlBarToolbarButtons: [ToolBarButton.plugins.rawValue, ToolBarButton.pip.rawValue, ToolBarButton.playlist.rawValue, ToolBarButton.settings.rawValue],
     .oscPosition: OSCPosition.floating.rawValue,
     .playlistWidth: 270,
     .prefetchPlaylistVideoDuration: true,
@@ -875,8 +878,8 @@ struct Preference {
     .subAutoLoadPriorityString: "",
     .subAutoLoadSearchPath: "./*",
     .ignoreAssStyles: false,
-    .subOverrideLevel: SubOverrideLevel.strip.rawValue,
-    .secondarySubOverrideLevel: SubOverrideLevel.strip.rawValue,
+    .subOverrideLevel: SubOverrideLevel.scale.rawValue,
+    .secondarySubOverrideLevel: SubOverrideLevel.scale.rawValue,
     .subTextFont: "sans-serif",
     .subTextSize: Float(55),
     .subTextColorString: NSColor.white.usingColorSpace(.deviceRGB)!.mpvColorString,

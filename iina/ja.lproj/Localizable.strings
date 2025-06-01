@@ -25,9 +25,9 @@
 "guide.faq" = "よくある質問";
 
 // Initial Window
-"initial.announcement" = "%@ バージョンのIINAを使用しています";
-"initial.beta.desc" = "リリースバージョンに戻したい場合は、「設定 > 一般」の「ベータアップデートの受信」のチェックを外してください。その後 <a href=\"https://iina.io\">公式ウェブサイト</a> から安定版リリースをインストールします。";
-"initial.nightly.desc" = "Nightlyを常用することは推奨しません。現在Nightlyビルドは自動アップデートに対応していません。新しいビルドは <a href=\"https://nightly.iina.io\">Nightly ウェブサイト</a> から取得してください。";
+"initial.announcement" = "IINAバージョン %@ を使用しています";
+"initial.beta.desc" = "リリースバージョンに戻したい場合は、「設定 > 一般」の「ベータアップデートを受信」のチェックを外してください。その後 <a href=\"https://iina.io\">公式ウェブサイト</a> から安定版リリースをインストールします。";
+"initial.nightly.desc" = "";
 "initial.debug.desc" = "デバッグビルドは大抵性能的に最適化されていません。そのため、常用することは推奨しません。デバッグビルドは自動アップデートに対応していません。";
 "initial.bug_report" = "<a href=\"https://github.com/iina/iina/issues\">GitHub issues</a> で報告";
 
@@ -50,6 +50,7 @@
 "quicksetting.deinterlace" = "インターレース解除";
 "quicksetting.hdr" = "HDR";
 "quicksetting.hide" = "隠す";
+"quicksetting.reset_speed" = "";
 
 // EQ Presets
 "eq.preset.flat" = "フラット";
@@ -77,14 +78,14 @@
 
 "alert.eq.new_profile.title" = "新しいEQプロファイル";
 "alert.eq.new_profile.message" = "プロファイルの名前を入力してください。";
-"alert.eq.rename.title" = "現在のプロファイルの名前を変更";
+"alert.eq.rename.title" = "Rename Current Profile";
 "alert.eq.rename.message" = "新しいプロファイル名を入力してください。";
 
 // OSDMessage.swift
 "osd.pause" = "一時停止";
 "osd.resume" = "再開";
 "osd.volume" = "音量: %i";
-"osd.speed" = "再生速度: %.2fx";
+"osd.speed" = "Speed: %@x";
 "osd.aspect" = "アスペクト比: %@";
 "osd.crop" = "クロップ: %@";
 "osd.rotate" = "回転: %i°";
@@ -161,17 +162,20 @@
 
 "preference.enable_adv_settings" = "高度な設定を有効化";
 
-"preference.sub_override_level.no" = "no";
+"preference.sub_override_level.no" = "いいえ";
 "preference.sub_override_level.force" = "強制的";
 "preference.sub_override_level.scale" = "大きさ";
 "preference.sub_override_level.strip" = "ストリップ";
 "preference.sub_override_level.yes" = "はい";
 
-"preference.sub_override_level.descriptive_text.no" = "Render subtitles as specified by the subtitle scripts, without overrides.";
-"preference.sub_override_level.descriptive_text.force" = "Apply all subtitle styles.";
-"preference.sub_override_level.descriptive_text.scale" = "Apply the scale setting in addition to the style settings in this section.";
-"preference.sub_override_level.descriptive_text.strip" = "Radically strip all ASS tags and styles from the subtitle.";
-"preference.sub_override_level.descriptive_text.yes" = "Apply all the style settings in this section.";
+"preference.sub_override_level.descriptive_text.no" = "字幕スクリプトで指定された字幕を上書きせずにレンダリングします。";
+"preference.sub_override_level.descriptive_text.force" = "すべての字幕スタイルを適用します。";
+"preference.sub_override_level.descriptive_text.scale" = "このセクションのスタイル設定に加えて、スケール設定を適用します。";
+"preference.sub_override_level.descriptive_text.strip" = "すべてのASSタグとスタイルをサブタイトルから大胆に取り除きます。";
+"preference.sub_override_level.descriptive_text.yes" = "このセクションのすべてのスタイル設定を適用します。";
+
+"preference.ytdl_plugin_not_installed" = "Install the Online Media plugin from \"Plugins > Install from GitHub\" to enjoy advanced features such and video downloading and auto yt-dlp updates.";
+"preference.ytdl_plugin_installed" = "Online メディア プラグインがインストールされているため、組み込みの youtube-dl サポートは無効になっています。";
 
 "menu.volume" = "音量: %d";
 "menu.volume_muted" = "ボリューム: %d (ミュート中)";
@@ -189,7 +193,7 @@
 "menu.exit_mini_player" = "ミュージックモードを終了する";
 "menu.pause" = "一時停止";
 "menu.resume" = "再生";
-"menu.speed" = "再生速度: %.2f倍";
+"menu.speed" = "Speed: %@x";
 "menu.chapters" = "チャプターパネルを表示";
 "menu.hide_chapters" = "チャプターパネルを隠す";
 "menu.playlist" = "プレイリストパネルを開く";
@@ -203,8 +207,8 @@
 
 "menu.seek_forward" = "%.0f秒進む";
 "menu.seek_backward" = "%.0f秒戻る";
-"menu.speed_up" = "再生速度を%.1f倍";
-"menu.speed_down" = "再生速度を%.1f倍";
+"menu.speed_up" = "Speed Up by %@x";
+"menu.speed_down" = "Speed Down by %@x";
 "menu.volume_up" = "音量 + %.0f%%";
 "menu.volume_down" = "音量 - %.0f%%";
 "menu.audio_delay_up" = "オーディオディレイ + %.1fs";
@@ -214,6 +218,14 @@
 
 "menu.crop_custom" = "カスタム…";
 "menu.find_online_sub" = "%@ からオンライン字幕を探す";
+
+"menu.manage_plugins" = "Manage Plugins…";
+"menu.developer_tool" = "Developer Tool";
+"menu.more_plugin" = "More…";
+"menu.conflicting_shortcuts" = "Conflicting key shortcuts…";
+"menu.reload_plugins" = "Reload All Plugins";
+"menu.show_plugins_panel" = "Show Plugins Panel";
+"menu.hide_plugins_panel" = "Hide Plugins Panel";
 
 "track.audio" = "オーディオ";
 "track.none" = "<なし>";
@@ -243,6 +255,8 @@
 "alert.error_loading_script" = "次のスクリプトは読み込めません！%@";
 "alert.error_saving_file" = "%@の保存時にエラーが発生しました: %@";
 "alert.error_deleting_file" = "ファイルを削除できません。";
+
+"alert.target_peak.bad_value" = "The value \"%@\" is invalid.\nPlease provide a value between 10 and 10000, or 0.";
 
 "alert.config.new.title" = "設定の新規作成";
 "alert.config.new.message" = "新しい設定ファイルの名前を入力を入力してください。";
@@ -383,6 +397,7 @@
 "osc_toolbar.music_mode" = "ミュージックモード切り替え";
 "osc_toolbar.sub_track" = "字幕トラックを選択";
 "osc_toolbar.screenshot" = "スクリーンショットを撮影";
+"osc_toolbar.plugins" = "Show plugins panel";
 
 "mini_player.album_art" = "アルバムアートの切り替え";
 "mini_player.loop" = "リピート";

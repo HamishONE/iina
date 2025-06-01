@@ -10,18 +10,73 @@ import Cocoa
 import OpenGL.GL
 import OpenGL.GL3
 
+let glVersions: [CGLOpenGLProfile] = [
+    kCGLOGLPVersion_3_2_Core,
+    kCGLOGLPVersion_Legacy
+]
+
+let glFormatBase: [CGLPixelFormatAttribute] = [
+    kCGLPFAOpenGLProfile,
+    kCGLPFAAccelerated,
+    kCGLPFADoubleBuffer
+]
+
+let glFormatSoftwareBase: [CGLPixelFormatAttribute] = [
+    kCGLPFAOpenGLProfile,
+    kCGLPFARendererID,
+    CGLPixelFormatAttribute(UInt32(kCGLRendererGenericFloatID)),
+    kCGLPFADoubleBuffer
+]
+
+let glFormatOptional: [[CGLPixelFormatAttribute]] = [
+    [kCGLPFABackingStore],
+    [kCGLPFAAllowOfflineRenderers]
+]
+
+let glFormat10Bit: [CGLPixelFormatAttribute] = [
+    kCGLPFAColorSize,
+    _CGLPixelFormatAttribute(rawValue: 64),
+    kCGLPFAColorFloat
+]
+
+let glFormatAutoGPU: [CGLPixelFormatAttribute] = [
+    kCGLPFASupportsAutomaticGraphicsSwitching
+]
+
+let attributeLookUp: [UInt32: String] = [
+    kCGLOGLPVersion_3_2_Core.rawValue: "kCGLOGLPVersion_3_2_Core",
+    kCGLOGLPVersion_Legacy.rawValue: "kCGLOGLPVersion_Legacy",
+    kCGLPFAOpenGLProfile.rawValue: "kCGLPFAOpenGLProfile",
+    UInt32(kCGLRendererGenericFloatID): "kCGLRendererGenericFloatID",
+    kCGLPFARendererID.rawValue: "kCGLPFARendererID",
+    kCGLPFAAccelerated.rawValue: "kCGLPFAAccelerated",
+    kCGLPFADoubleBuffer.rawValue: "kCGLPFADoubleBuffer",
+    kCGLPFABackingStore.rawValue: "kCGLPFABackingStore",
+    kCGLPFAColorSize.rawValue: "kCGLPFAColorSize",
+    kCGLPFAColorFloat.rawValue: "kCGLPFAColorFloat",
+    kCGLPFAAllowOfflineRenderers.rawValue: "kCGLPFAAllowOfflineRenderers",
+    kCGLPFASupportsAutomaticGraphicsSwitching.rawValue: "kCGLPFASupportsAutomaticGraphicsSwitching"
+]
+
+/// OpenGL layer for `VideoView`.
+///
+/// This class is structured to make it easier to compare it to the reference implementation in the mpv player. Methods and statements
+/// are in the same order as found in the mpv source. However there are differences that cause the implementation to not match up. For
+/// example IINA draws using a background thread whereas mpv uses the main thread. For this reason the locking differs as IINA has to
+/// coordinate access to data that is shared between the main thread and the background thread.
 class ViewLayer: CAOpenGLLayer {
 
-  weak var videoView: VideoView!
+  private weak var videoView: VideoView!
 
   let mpvGLQueue = DispatchQueue(label: "com.colliderli.iina.mpvgl", qos: .userInteractive)
-  @Atomic var blocked = false
+
+  private var bufferDepth: GLint = 8
 
   private let cglContext: CGLContextObj
   private let cglPixelFormat: CGLPixelFormatObj
 
-  /// Lock to single thread calls to `display`.
-  private let displayLock: NSLocking
+  /// Lock to single thread calls to `draw(forced:)`.
+  private let drawLock: Lock
 
   private var fbo: GLint = 1
 
@@ -33,16 +88,19 @@ class ViewLayer: CAOpenGLLayer {
   /// For the display lock a recursive lock is needed because the call to `CATransaction.flush()` in `display` calls
   /// `display_if_needed` which will then call `display` if layout is needed. See the discussion in PR
   /// [#5029](https://github.com/iina/iina/pull/5029).
-  override init() {
-    cglPixelFormat = ViewLayer.createPixelFormat()
+  /// - Parameter videoView: The view this layer will be associated with.
+  init(_ videoView: VideoView) {
+    self.videoView = videoView
+    (cglPixelFormat, bufferDepth) = ViewLayer.createPixelFormat(videoView.player)
     cglContext = ViewLayer.createContext(cglPixelFormat)
-    displayLock = NSRecursiveLock()
+    drawLock = Lock()
     super.init()
-
-    isOpaque = true
-    isAsynchronous = false
-
     autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+    backgroundColor = NSColor.black.cgColor
+    if bufferDepth > 8 {
+      contentsFormat = .RGBA16Float
+    }
+    isAsynchronous = false
   }
 
   /// Returns an initialized shadow copy of the given layer with custom instance variables copied from `layer`.
@@ -54,23 +112,21 @@ class ViewLayer: CAOpenGLLayer {
   /// - Parameter layer: The layer from which custom fields should be copied.
   override init(layer: Any) {
     let previousLayer = layer as! ViewLayer
+    videoView = previousLayer.videoView
     cglPixelFormat = previousLayer.cglPixelFormat
     cglContext = previousLayer.cglContext
-    displayLock = previousLayer.displayLock
+    drawLock = previousLayer.drawLock
     super.init(layer: layer)
-    isOpaque = previousLayer.isOpaque
-    isAsynchronous = previousLayer.isAsynchronous
     autoresizingMask = previousLayer.autoresizingMask
-    videoView = previousLayer.videoView
+    backgroundColor = previousLayer.backgroundColor
+    wantsExtendedDynamicRangeContent = previousLayer.wantsExtendedDynamicRangeContent
+    contentsFormat = previousLayer.contentsFormat
+    isAsynchronous = previousLayer.isAsynchronous
   }
 
   required init?(coder aDecoder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-
-  override func copyCGLPixelFormat(forDisplayMask mask: UInt32) -> CGLPixelFormatObj { cglPixelFormat }
-
-  override func copyCGLContext(forPixelFormat pf: CGLPixelFormatObj) -> CGLContextObj { cglContext }
 
   // MARK: - Draw
 
@@ -109,13 +165,16 @@ class ViewLayer: CAOpenGLLayer {
                                     h: Int32(dims[3]),
                                     internal_format: 0)
           withUnsafeMutablePointer(to: &data) { data in
-            var params: [mpv_render_param] = [
-              mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_FBO, data: .init(data)),
-              mpv_render_param(type: MPV_RENDER_PARAM_FLIP_Y, data: .init(flip)),
-              mpv_render_param()
-            ]
-            mpv_render_context_render(context, &params)
-            ignoreGLError()
+            withUnsafeMutablePointer(to: &bufferDepth) { bufferDepth in
+              var params: [mpv_render_param] = [
+                mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_FBO, data: .init(data)),
+                mpv_render_param(type: MPV_RENDER_PARAM_FLIP_Y, data: .init(flip)),
+                mpv_render_param(type: MPV_RENDER_PARAM_DEPTH, data:.init(bufferDepth)),
+                mpv_render_param()
+              ]
+              mpv_render_context_render(context, &params)
+              ignoreGLError()
+            }
           }
         } else {
           glClearColor(0, 0, 0, 1)
@@ -126,37 +185,21 @@ class ViewLayer: CAOpenGLLayer {
     }
   }
 
-  func suspend() {
-    blocked = true
-    mpvGLQueue.suspend()
-  }
+  override func copyCGLPixelFormat(forDisplayMask mask: UInt32) -> CGLPixelFormatObj { cglPixelFormat }
 
-  func resume() {
-    blocked = false
-    draw(forced: true)
-    mpvGLQueue.resume()
-  }
+  override func copyCGLContext(forPixelFormat pf: CGLPixelFormatObj) -> CGLContextObj { cglContext }
 
-  func draw(forced: Bool = false) {
-    videoView.$isUninited.withLock() { isUninited in
-      // The properties forceRender and needsMPVRender are always accessed while holding isUninited's
-      // lock. This avoids the need for separate locks to avoid data races with these flags. No need
-      // to check isUninited at this point.
-      needsMPVRender = true
-      if forced { forceRender = true }
-    }
-
-    // Must not call display while holding isUninited's lock as that method will attempt to acquire
-    // the lock and our locks do not support recursion.
-    display()
-  }
-
+  /// Reload the content of this layer.
+  ///
+  /// - Important: Because this method is called by tasks on the `mpvGLQueue` an explicit
+  ///     [CATransaction](https://developer.apple.com/documentation/quartzcore/catransaction) **must**
+  ///     be used. Otherwise if `CA_ASSERT_MAIN_THREAD_TRANSACTIONS` is set to check for unintended UI operations on
+  ///     something other than the main thread, IINA will crash with a SIGABRT reporting "an implicit transaction wasn't created on a
+  ///     main thread". See issue [#5038](https://github.com/iina/iina/issues/5038).
   override func display() {
-    displayLock.lock()
-    defer { displayLock.unlock() }
-
+    CATransaction.begin()
     super.display()
-    CATransaction.flush()
+    CATransaction.commit()
 
     // Must lock the OpenGL context before calling mpv render methods. Can't wait until we have
     // checked the flags to see if a skip renderer is needed because the OpenGL context must always
@@ -191,14 +234,100 @@ class ViewLayer: CAOpenGLLayer {
     }
   }
 
+  func draw(forced: Bool = false) {
+    drawLock.withLock() {
+      videoView.$isUninited.withLock() { isUninited in
+        // The properties forceRender and needsMPVRender are always accessed while holding
+        // isUninited's lock. This avoids the need for separate locks to avoid data races with these
+        // flags. No need to check isUninited at this point.
+        needsMPVRender = true
+        if forced { forceRender = true }
+      }
+
+      // Must not call display while holding isUninited's lock as that method will attempt to
+      // acquire the lock and our locks do not support recursion.
+      display()
+    }
+  }
+
   // MARK: - Core OpenGL Context and Pixel Format
+
+  private static func createPixelFormat(_ player: PlayerCore) -> (CGLPixelFormatObj, GLint) {
+    var pix: CGLPixelFormatObj?
+    var depth: GLint = 8
+    var err: CGLError = CGLError(rawValue: 0)
+    let swRender: CocoaCbSwRenderer = player.mpv.getEnum(MPVOption.GPURendererOptions.cocoaCbSwRenderer)
+
+    if swRender != .yes {
+      (pix, depth, err) = ViewLayer.findPixelFormat(player)
+    }
+
+    if (err != kCGLNoError || pix == nil) && swRender != .no {
+      (pix, depth, err) = ViewLayer.findPixelFormat(player, software: true)
+    }
+
+    guard let pixelFormat = pix, err == kCGLNoError else {
+      Logger.fatal("Cannot create OpenGL pixel format!")
+    }
+
+    return (pixelFormat, depth)
+  }
+
+  private static func findPixelFormat(_ player: PlayerCore, software: Bool = false) -> (CGLPixelFormatObj?, GLint, CGLError) {
+    let subsystem = Logger.makeSubsystem("layer\(player.playerNumber)")
+    var pix: CGLPixelFormatObj?
+    var err: CGLError = CGLError(rawValue: 0)
+    var npix: GLint = 0
+
+    for ver in glVersions {
+      var glBase = software ? glFormatSoftwareBase : glFormatBase
+      glBase.insert(CGLPixelFormatAttribute(ver.rawValue), at: 1)
+
+      var glFormat = [glBase]
+      if player.mpv.getFlag(MPVOption.GPURendererOptions.cocoaCb10bitContext) {
+        glFormat += [glFormat10Bit]
+      }
+      glFormat += glFormatOptional
+
+      if !Preference.bool(for: .forceDedicatedGPU) {
+        glFormat += [glFormatAutoGPU]
+      }
+
+      for index in stride(from: glFormat.count-1, through: 0, by: -1) {
+        let format = glFormat.flatMap { $0 } + [_CGLPixelFormatAttribute(rawValue: 0)]
+        err = CGLChoosePixelFormat(format, &pix, &npix)
+
+        if err == kCGLBadAttribute || err == kCGLBadPixelFormat || pix == nil {
+          glFormat.remove(at: index)
+        } else {
+          let attArray = format.map({ (value: _CGLPixelFormatAttribute) -> String in
+            return attributeLookUp[value.rawValue] ?? String(value.rawValue)
+          })
+
+          Logger.log("Created CGL pixel format with attributes: " +
+                     "\(attArray.joined(separator: ", "))", subsystem: subsystem)
+          return (pix, glFormat.contains(glFormat10Bit) ? 16 : 8, err)
+        }
+      }
+    }
+
+    let errS = String(cString: CGLErrorString(err))
+    Logger.log("Couldn't create a " + "\(software ? "software" : "hardware accelerated") " +
+               "CGL pixel format: \(errS) (\(err.rawValue))", subsystem: subsystem)
+    let swRenderer: CocoaCbSwRenderer = player.mpv.getEnum(MPVOption.GPURendererOptions.cocoaCbSwRenderer)
+    if software == false && swRenderer == .auto {
+      Logger.log("Falling back to software renderer", subsystem: subsystem)
+    }
+
+    return (pix, 8, err)
+  }
 
   private static func createContext(_ pixelFormat: CGLPixelFormatObj) -> CGLContextObj {
     var ctx: CGLContextObj?
     CGLCreateContext(pixelFormat, nil, &ctx)
 
     guard let ctx = ctx else {
-      Logger.fatal("Cannot create OpenGL context")
+      Logger.fatal("Cannot create OpenGL context!")
     }
 
     // Sync to vertical retrace.
@@ -212,35 +341,42 @@ class ViewLayer: CAOpenGLLayer {
     return ctx
   }
 
-  private static func createPixelFormat() -> CGLPixelFormatObj {
-    var attributeList: [CGLPixelFormatAttribute] = [
-      kCGLPFADoubleBuffer,
-      kCGLPFAAllowOfflineRenderers,
-      kCGLPFAColorFloat,
-      kCGLPFAColorSize, CGLPixelFormatAttribute(64),
-      kCGLPFAOpenGLProfile, CGLPixelFormatAttribute(kCGLOGLPVersion_3_2_Core.rawValue),
-      kCGLPFAAccelerated,
-    ]
+  // MARK: - ICC Profile
 
-    if (!Preference.bool(for: .forceDedicatedGPU)) {
-      attributeList.append(kCGLPFASupportsAutomaticGraphicsSwitching)
-    }
+  /// Set an ICC profile for use with the mpv [icc-profile-auto](https://mpv.io/manual/stable/#options-icc-profile-auto)
+  /// option.
+  ///
+  /// This method fulfills the mpv requirement that applications using libmpv with the render API provide the ICC profile via
+  /// `MPV_RENDER_PARAM_ICC_PROFILE` in order for the `--icc-profile-auto` option to work. The ICC profile data will not
+  /// be used by mpv unless the option is enabled.
+  ///
+  /// The IINA `Load ICC profile` setting is tied to the `--icc-profile-auto` option. This allows users to override IINA using
+  /// the [--icc-profile](https://mpv.io/manual/stable/#options-icc-profile) option.
+  func setRenderICCProfile(_ profile: NSColorSpace) {
+    // The OpenGL context must always be locked before locking the isUninited lock to avoid
+    // deadlocks.
+    videoView.player.mpv.lockAndSetOpenGLContext()
+    defer { videoView.player.mpv.unlockOpenGLContext() }
+    videoView.$isUninited.withLock() { isUninited in
+      guard !isUninited else { return }
 
-    var pix: CGLPixelFormatObj?
-    var npix: GLint = 0
+      guard let renderContext = videoView.player.mpv.mpvRenderContext else { return }
+      guard var iccData = profile.iccProfileData else {
+        let name = profile.localizedName ?? "unnamed"
+        Logger.log("Color space \(name) does not contain ICC profile data", level: .warning)
+        return
+      }
+      iccData.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
+        guard let baseAddress = ptr.baseAddress, ptr.count > 0 else { return }
 
-    for index in (0..<attributeList.count).reversed() {
-      let attributes = Array(
-        attributeList[0...index] + [_CGLPixelFormatAttribute(rawValue: 0)]
-      )
-      CGLChoosePixelFormat(attributes, &pix, &npix)
-      if let pix = pix {
-        Logger.log("Created OpenGL pixel format with \(attributes)", level: .debug)
-        return pix
+        let u8Ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
+        var icc = mpv_byte_array(data: u8Ptr, size: ptr.count)
+        withUnsafeMutableBytes(of: &icc) { (ptr: UnsafeMutableRawBufferPointer) in
+          let params = mpv_render_param(type: MPV_RENDER_PARAM_ICC_PROFILE, data: ptr.baseAddress)
+          mpv_render_context_set_parameter(renderContext, params)
+        }
       }
     }
-
-    Logger.fatal("Cannot create OpenGL pixel format!")
   }
 
   // MARK: - Utils
