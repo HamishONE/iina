@@ -37,6 +37,7 @@
 // MainWindowController.swift
 "main.buffering_indicator" = "Buffering...%d%%";
 "main.opening_stream" = "Se deschide streamul…";
+"main.seeking_indicator" = "Seeking…";
 "osc.precision" = "Precizie";
 "osc.1s" = "O secundă";
 "osc.100ms" = "100 milisecunde";
@@ -84,7 +85,7 @@
 // OSDMessage.swift
 "osd.pause" = "Pauză";
 "osd.resume" = "Reia";
-"osd.volume" = "Volum: %i";
+"osd.volume" = "Volum: %@";
 "osd.speed" = "Speed: %@x";
 "osd.aspect" = "Raport de aspect: %@";
 "osd.crop" = "Decupare: %@";
@@ -92,19 +93,19 @@
 "osd.deinterlace" = "Deîntrețesere: %@";
 "osd.hwdec" = "Decodare hardware: %@";
 "osd.audio_delay.nodelay" = "Întârziere audio: Fără întârziere";
-"osd.audio_delay.later" = "Întârziere audio: %.2fs mai târziu";
-"osd.audio_delay.earlier" = "Întârziere audio: %.2fs mai devreme";
+"osd.audio_delay.later" = "Întârziere audio: %@s mai târziu";
+"osd.audio_delay.earlier" = "Întârziere audio: %@s mai devreme";
 "osd.sub_delay.nodelay" = "Întârziere subtitrare: Fără întârziere";
-"osd.sub_delay.later" = "Întârziere subtitrare: %.2fs mai târziu";
-"osd.sub_delay.earlier" = "Întârziere subtitrare: %.2fs mai devreme";
-"osd.subtitle_pos" = "Poziție subtitrare: %.1f";
+"osd.sub_delay.later" = "Întârziere subtitrare: %@s mai târziu";
+"osd.sub_delay.earlier" = "Întârziere subtitrare: %@s mai devreme";
+"osd.subtitle_pos" = "Poziție subtitrare: %@";
 "osd.sub_hidden" = "Subtitrări ascunse";
 "osd.sub_visible" = "Subtitrări vizibile";
 "osd.sub_second_delay.nodelay" = "Decalaj subtitrări secundare: fără decalaj";
-"osd.sub_second_delay.later" = "Decalaj subtitrări secundare: %.2fs după";
-"osd.sub_second_delay.earlier" = "Decalaj subtitrări secundare: %.2fs înainte";
+"osd.sub_second_delay.later" = "Decalaj subtitrări secundare: %@s după";
+"osd.sub_second_delay.earlier" = "Decalaj subtitrări secundare: %@s înainte";
 "osd.sub_second_hidden" = "Subtitrări secundare ascunse";
-"osd.sub_second_pos" = "Poziție subtitrări secundare: %.1f";
+"osd.sub_second_pos" = "Poziție subtitrări secundare: %@";
 "osd.sub_second_visible" = "Subtitrări secundare vizibile";
 "osd.mute" = "Mut";
 "osd.unmute" = "Activează sunetul";
@@ -114,7 +115,7 @@
 "osd.abloop.clear" = "AB-Loop: Șters";
 "osd.stop" = "Oprire";
 "osd.chapter" = "Capitol: %@";
-"osd.subtitle_scale" = "Scală subtitrare: %.2fx";
+"osd.subtitle_scale" = "Scală subtitrare: %@x";
 "osd.add_to_playlist" = "Fișierul %i a fost adăugat la lista de redare";
 "osd.clear_playlist" = "Listă de redare ștearsă";
 "osd.video_eq.contrast" = "Contrast: %i";
@@ -177,10 +178,10 @@
 "preference.ytdl_plugin_not_installed" = "Install the Online Media plugin from \"Plugins > Install from GitHub\" to enjoy advanced features such and video downloading and auto yt-dlp updates.";
 "preference.ytdl_plugin_installed" = "The built-in youtube-dl support is disabled since you have the Online media plugin installed.";
 
-"menu.volume" = "Volum: %d";
-"menu.volume_muted" = "Volum: %d (Mut)";
-"menu.audio_delay" = "Întârziere audio: %.2fs";
-"menu.sub_delay" = "Întârziere subtitrare: %.2fs";
+"menu.volume" = "Volum: %@";
+"menu.volume_muted" = "Volum: %@ (Mut)";
+"menu.audio_delay" = "Întârziere audio: %@s";
+"menu.sub_delay" = "Întârziere subtitrare: %@s";
 "menu.sub_hide" = "Ascunde subtitrările";
 "menu.sub_show" = "Arată subtitrările";
 "menu.sub_second_hide" = "Ascunde subtitrările secundare";
@@ -205,16 +206,16 @@
 "menu.subtitles" = "Arată panoul Subtitrări";
 "menu.hide_subtitles" = "Ascunde panoul Subtitrări";
 
-"menu.seek_forward" = "Sari înainte %.0fs";
-"menu.seek_backward" = "Sari înapoi %.0fs";
+"menu.seek_forward" = "Sari înainte %@s";
+"menu.seek_backward" = "Sari înapoi %@s";
 "menu.speed_up" = "Speed Up by %@x";
 "menu.speed_down" = "Speed Down by %@x";
-"menu.volume_up" = "Volum +%.0f%%";
-"menu.volume_down" = "Volum -%.0f%%";
-"menu.audio_delay_up" = "Întârziere audio +%.1fs";
-"menu.audio_delay_down" = "Întârziere audio -%.1fs";
-"menu.sub_delay_up" = "Întârziere subitrare +%.1fs";
-"menu.sub_delay_down" = "Întârziere subitrare -%.1fs";
+"menu.volume_up" = "Volum +%@%%";
+"menu.volume_down" = "Volum -%@%%";
+"menu.audio_delay_up" = "Întârziere audio +%@s";
+"menu.audio_delay_down" = "Întârziere audio -%@s";
+"menu.sub_delay_up" = "Întârziere subitrare +%@s";
+"menu.sub_delay_down" = "Întârziere subitrare -%@s";
 
 "menu.crop_custom" = "Personalizat…";
 "menu.find_online_sub" = "Găsește subtitrări online din %@";
@@ -262,8 +263,6 @@
 "alert.config.new.message" = "Te rog introdu un nume pentru noua configurație.";
 "alert.config.duplicate.title" = "Duplică configurația";
 "alert.config.duplicate.message" = "Te rog introdu numele pentru fișierul de configurare duplicat.";
-"alert.config.empty_name" = "Numele nu poate fi gol.";
-"alert.config.name_existing" = "O configurare cu același nume există deja.";
 "alert.config.file_existing.title" = "Fișierul există deja";
 "alert.config.file_existing.message" = "O configurare cu un fișier identic denumit există deja. Alegeți OK pentru a arăta fișierul în Finder.";
 "alert.config.cannot_create" = "Nu se poate crea fișierul de configurare!\n%@";
@@ -358,6 +357,11 @@
 
 "playlist.total_length" = "%@ în total";
 "playlist.total_length_with_selected" = "%@ din %@ selectat";
+"playlist.sorting.header" = "Sorting";
+"playlist.sorting.filename_ascending" = "Filename Ascending";
+"playlist.sorting.filename_descending" = "Filename Descending";
+"playlist.sorting.path_ascending" = "File Path Ascending";
+"playlist.sorting.path_descending" = "File Path Descending";
 "pl_menu.title_multi" = "%d elemente";
 "pl_menu.play_next" = "Redă în continuare";
 "pl_menu.play_in_new_window" = "Redă în Fereastră Nouă";
@@ -408,6 +412,7 @@
 "mini_player.volume" = "Volum";
 "mini_player.close" = "Închide modul muzică";
 "mini_player.back" = "Înapoi la modul video";
+"mini_player.sort" = "Sort the playlist";
 
 // Touch bar
 

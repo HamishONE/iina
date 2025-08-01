@@ -1288,7 +1288,7 @@ class MPVController: NSObject {
       DispatchQueue.main.async { [self] in
         player.info.volume = data
         player.syncUI(.volume)
-        player.sendOSD(.volume(Int(data)))
+        player.sendOSD(.volume(data))
       }
 
     case MPVOption.Audio.audioDelay:
@@ -1696,7 +1696,7 @@ class MPVController: NSObject {
     }
   }
 
-  private func log(_ message: String, level: Logger.Level = .debug) {
+  private func log(_ message: @autoclosure () -> String, level: Logger.Level = .debug) {
     Logger.log(message, level: level, subsystem: subsystem)
   }
 
@@ -1775,7 +1775,5 @@ fileprivate func mpvGetOpenGLFunc(_ ctx: UnsafeMutableRawPointer?, _ name: Unsaf
 
 fileprivate func mpvUpdateCallback(_ ctx: UnsafeMutableRawPointer?) {
   let layer = bridge(ptr: ctx!) as ViewLayer
-  layer.mpvGLQueue.async {
-    layer.draw()
-  }
+  layer.update()
 }

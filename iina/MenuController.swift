@@ -526,8 +526,10 @@ class MenuController: NSObject, NSMenuDelegate {
       volFmtString = NSLocalizedString("menu.volume", comment: "Volume:")
       mute.state = .off
     }
-    volumeIndicator.title = String(format: volFmtString, Int(player.info.volume))
-    audioDelayIndicator.title = String(format: NSLocalizedString("menu.audio_delay", comment: "Audio Delay:"), player.info.audioDelay)
+    let volumeString = player.info.volume.groupedStringUpTo6Decimals
+    volumeIndicator.title = String(format: volFmtString, volumeString)
+    let audioDelayString = player.info.audioDelay.groupedStringUpTo6Decimals
+    audioDelayIndicator.title = String(format: NSLocalizedString("menu.audio_delay", comment: "Audio Delay:"), audioDelayString)
   }
 
   private func updateAudioDevice() {
@@ -557,7 +559,8 @@ class MenuController: NSObject, NSMenuDelegate {
         Constants.String.showSubtitles
     hideSecondSubtitles.title = player.info.isSecondSubVisible ? Constants.String.hideSecondSubtitles :
         Constants.String.showSecondSubtitles
-    subDelayIndicator.title = String(format: NSLocalizedString("menu.sub_delay", comment: "Subtitle Delay:"), player.info.subDelay)
+    let subDelayString = player.info.subDelay.groupedStringUpTo6Decimals
+    subDelayIndicator.title = String(format: NSLocalizedString("menu.sub_delay", comment: "Subtitle Delay:"), subDelayString)
 
     let encodingCode = player.info.subEncoding ?? "auto"
     for encoding in AppData.encodings {
@@ -745,7 +748,7 @@ class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func updateOpenMenuItems() {
-    if PlayerCore.playing.count == 0 {
+    if PlayerCore.nonIdle.count == 0 {
       open.title = stringForOpen
       openAlternative.title = stringForOpen
       openURL.title = stringForOpenURL
@@ -951,17 +954,7 @@ class MenuController: NSObject, NSMenuDelegate {
     menuItem.keyEquivalentModifierMask = kMdf
 
     if let value = value, let l10nKey = l10nKey {
-      let valObj: CVarArg
-      switch l10nKey {
-      case "speed_up",
-        "speed_down":
-        // Title format expects arg type: String
-        valObj = abs(value).groupedStringUpTo6Decimals
-      default:
-        // Title format expects numeric arg
-        valObj = abs(value)
-      }
-      menuItem.title = String(format: NSLocalizedString("menu." + l10nKey, comment: ""), valObj)
+      menuItem.title = String(format: NSLocalizedString("menu." + l10nKey, comment: ""), abs(value).groupedStringUpTo6Decimals)
       if let extraData = extraData {
         menuItem.representedObject = (value, extraData)
       } else {

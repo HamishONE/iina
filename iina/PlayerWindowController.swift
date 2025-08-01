@@ -42,6 +42,7 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
   internal lazy var useExactSeek: Preference.SeekOption = Preference.enum(for: .useExactSeek)
   internal lazy var relativeSeekAmount: Int = Preference.integer(for: .relativeSeekAmount)
   internal lazy var volumeScrollAmount: Int = Preference.integer(for: .volumeScrollAmount)
+  internal lazy var playbackSpeedScrollAmount: Int = Preference.integer(for: .playbackSpeedScrollAmount)
   internal lazy var singleClickAction: Preference.MouseClickAction = Preference.enum(for: .singleClickAction)
   internal lazy var doubleClickAction: Preference.MouseClickAction = Preference.enum(for: .doubleClickAction)
   internal lazy var horizontalScrollAction: Preference.ScrollAction = Preference.enum(for: .horizontalScrollAction)
@@ -59,6 +60,7 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
     .useExactSeek,
     .relativeSeekAmount,
     .volumeScrollAmount,
+    .playbackSpeedScrollAmount,
     .singleClickAction,
     .doubleClickAction,
     .horizontalScrollAction,
@@ -109,6 +111,10 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
     case PK.volumeScrollAmount.rawValue:
       if let newValue = change[.newKey] as? Int {
         volumeScrollAmount = newValue.clamped(to: 1...4)
+      }
+    case PK.playbackSpeedScrollAmount.rawValue:
+      if let newValue = change[.newKey] as? Int {
+        playbackSpeedScrollAmount = newValue.clamped(to: 1...4)
       }
     case PK.singleClickAction.rawValue:
       if let newValue = change[.newKey] as? Int {
@@ -507,6 +513,11 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
       let newVolume = player.info.volume + (isMouse ? delta : AppData.volumeMap[volumeScrollAmount] * delta)
       player.setVolume(newVolume)
       volumeSlider.doubleValue = newVolume
+    case .playbackSpeed:
+      let min = 0.05
+      let max = 4.0
+      let newSpeed = round(1000 * (player.info.playSpeed + (player.info.playSpeed * AppData.playbackSpeedMap[playbackSpeedScrollAmount] * delta)).clamped(to: min...max)) / 1000
+      player.setSpeed(newSpeed)
     default:
       break
     }
@@ -537,10 +548,18 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
 
     NotificationCenter.default.post(name: .iinaMainWindowChanged, object: true)
   }
-  
+
+  /// The window changed its occlusion state.
+  ///
+  /// If the entire window is now occluded then no action is needed. But if the window has become visible then the view may need to
+  /// be drawn.
+  /// - Note: The window [isVisible](https://developer.apple.com/documentation/appkit/nswindow/isvisible)
+  ///     property is intentionally not used. That property is `true` even when the window is fully obscured. Instead the
+  ///     [occlusionState](https://developer.apple.com/documentation/appkit/nswindow/occlusionstate-swift.property)
+  ///     property is used as it will not indicate the window is visible when it is obscured by other windows.
   func windowDidChangeOcclusionState(_ notification: Notification) {
-    // Must force drawing for audio files that have album cover art.
-    videoView.videoLayer.draw(forced: true)
+    guard let window, window.occlusionState.contains(.visible) else { return }
+    forceDraw("window became visible")
   }
 
   func windowDidResignMain(_ notification: Notification) {
@@ -599,8 +618,13 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
       log("Video position not available", level: .warning)
       return
     }
-    [leftLabel, rightLabel].forEach { $0.updateText(with: duration, given: pos) }
-    player.touchBarSupport.touchBarPosLabels.forEach { $0.updateText(with: duration, given: pos) }
+    guard let remaining = player.info.videoRemaining else {
+      log("Video remaining not available", level: .warning)
+      return
+    }
+    [leftLabel, rightLabel].forEach { $0.updateText(with: duration, given: pos, and: remaining) }
+    player.touchBarSupport.touchBarPosLabels.forEach { $0.updateText(with: duration, given: pos,
+                                                                     and: remaining) }
     if andProgressBar {
       let percentage = (pos.second / duration.second) * 100
       playSlider.doubleValue = percentage
@@ -624,6 +648,19 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
 
   func handleVideoSizeChange() {
     fatalError("Must implement in the subclass")
+  }
+
+  /// Force a draw, if needed.
+  ///
+  /// If a video is actively being played then there is no need to force a draw as the view is actively being drawn. Otherwise the view
+  /// must be drawn. Video tracks can be images or cover art. Even when there isn't a video track drawing sometimes must be forced
+  /// to clear a previous image, such as when an audio only file is played in the main window after it was used to play a video.
+  func forceDraw(_ reason: String) {
+    guard player.info.state.active else { return }
+    let notVideo = player.info.currentTrack(.video)?.isImage ?? true
+    guard player.info.state == .paused || notVideo else { return }
+    log("Forcing drawing, \(reason)")
+    videoView.videoLayer.update(force: true)
   }
 
   // MARK: - IBActions
@@ -671,7 +708,7 @@ class PlayerWindowController: NSWindowController, NSWindowDelegate {
 
   // MARK: - Utils
 
-  func log(_ message: String, level: Logger.Level = .debug) {
+  func log(_ message: @autoclosure () -> String, level: Logger.Level = .debug) {
     Logger.log(message, level: level, subsystem: subsystem)
   }
 }

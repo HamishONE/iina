@@ -37,6 +37,7 @@
 // MainWindowController.swift
 "main.buffering_indicator" = "Bufferwerking… %d%%";
 "main.opening_stream" = "Open tans stroom…";
+"main.seeking_indicator" = "Seeking…";
 "osc.precision" = "Presisie";
 "osc.1s" = "1 sekonde";
 "osc.100ms" = "100 millisekondes";
@@ -84,7 +85,7 @@
 // OSDMessage.swift
 "osd.pause" = "Wag";
 "osd.resume" = "Hervat";
-"osd.volume" = "Volume: %i";
+"osd.volume" = "Volume: %@";
 "osd.speed" = "Snelheid: %@x";
 "osd.aspect" = "Aspekverhouding: %@";
 "osd.crop" = "Snoei: %@";
@@ -92,19 +93,19 @@
 "osd.deinterlace" = "Deïnterlinieer: %@";
 "osd.hwdec" = "Apparatuurdekodering: %@";
 "osd.audio_delay.nodelay" = "Geen oudiovertraging";
-"osd.audio_delay.later" = "Oudio vertraag met %.2fs";
-"osd.audio_delay.earlier" = "Oudio versnel met %.2fs";
+"osd.audio_delay.later" = "Oudio vertraag met %@s";
+"osd.audio_delay.earlier" = "Oudio versnel met %@s";
 "osd.sub_delay.nodelay" = "Geen onderskrifvertraging";
-"osd.sub_delay.later" = "Onderskrif vertraag met %.2fs";
-"osd.sub_delay.earlier" = "Onderskrif versnel met %.2fs";
-"osd.subtitle_pos" = "Onderskrifposisie: %.1f";
+"osd.sub_delay.later" = "Onderskrif vertraag met %@s";
+"osd.sub_delay.earlier" = "Onderskrif versnel met %@s";
+"osd.subtitle_pos" = "Onderskrifposisie: %@";
 "osd.sub_hidden" = "Onderskrifte is versteek";
 "osd.sub_visible" = "Onderskrifte is sigbaar";
 "osd.sub_second_delay.nodelay" = "Sekondêreonderskrifvertraging: Geen vertraging";
-"osd.sub_second_delay.later" = "Sekondêreonderskrifvertraging: %.2fs later";
-"osd.sub_second_delay.earlier" = "Sekondêreonderskrifvertraging: %.2fs vroeër";
+"osd.sub_second_delay.later" = "Sekondêreonderskrifvertraging: %@s later";
+"osd.sub_second_delay.earlier" = "Sekondêreonderskrifvertraging: %@s vroeër";
 "osd.sub_second_hidden" = "Sekondêre onderskrifte is versteek";
-"osd.sub_second_pos" = "Sekondêreonderskfitposisie: %.1f";
+"osd.sub_second_pos" = "Sekondêreonderskfitposisie: %@";
 "osd.sub_second_visible" = "Sekondêre onderskrifte is sigbaar";
 "osd.mute" = "Demp";
 "osd.unmute" = "Ontdemp";
@@ -114,7 +115,7 @@
 "osd.abloop.clear" = "AB-lus: opgehef";
 "osd.stop" = "Stop";
 "osd.chapter" = "Hoofstuk: %@";
-"osd.subtitle_scale" = "Onderskrifskaal: %.2fx";
+"osd.subtitle_scale" = "Onderskrifskaal: %@x";
 "osd.add_to_playlist" = "%i lêers tot afspeellys toegevoeg";
 "osd.clear_playlist" = "Afspeellys gewis";
 "osd.video_eq.contrast" = "Kontras: %i";
@@ -177,10 +178,10 @@
 "preference.ytdl_plugin_not_installed" = "Install the Online Media plugin from \"Plugins > Install from GitHub\" to enjoy advanced features such and video downloading and auto yt-dlp updates.";
 "preference.ytdl_plugin_installed" = "Die ingeboude youtube-dl-ondersteuning is gedeaktiveer aangesien die Aanlen media-inprop geïnstalleer is.";
 
-"menu.volume" = "Volume: %d";
-"menu.volume_muted" = "Volume: %d (gedemp)";
-"menu.audio_delay" = "Oudiovertraging: %.2fs";
-"menu.sub_delay" = "Onderskrifvertraging: %.2fs";
+"menu.volume" = "Volume: %@";
+"menu.volume_muted" = "Volume: %@ (gedemp)";
+"menu.audio_delay" = "Oudiovertraging: %@s";
+"menu.sub_delay" = "Onderskrifvertraging: %@s";
 "menu.sub_hide" = "Versteek onderskrifte";
 "menu.sub_show" = "Toon onderskrifte";
 "menu.sub_second_hide" = "Versteek sekondêre onderskrifte";
@@ -205,16 +206,16 @@
 "menu.subtitles" = "Toon onderskritfepaneel";
 "menu.hide_subtitles" = "Versteek onderskritfepaneel";
 
-"menu.seek_forward" = "Gaan %.0fs vorentoe";
-"menu.seek_backward" = "Gaan %.0fs terug";
+"menu.seek_forward" = "Gaan %@s vorentoe";
+"menu.seek_backward" = "Gaan %@s terug";
 "menu.speed_up" = "Versnel met %@x";
 "menu.speed_down" = "Vertraag met %@x";
-"menu.volume_up" = "Volume + %.0f%%";
-"menu.volume_down" = "Volume - %.0f%%";
-"menu.audio_delay_up" = "Oudiovertraging + %.1fs";
-"menu.audio_delay_down" = "Oudiovertraging - %.1fs";
-"menu.sub_delay_up" = "Onderskrifvertraging + %.1fs";
-"menu.sub_delay_down" = "Onderskrifvertraging - %.1fs";
+"menu.volume_up" = "Volume + %@%%";
+"menu.volume_down" = "Volume - %@%%";
+"menu.audio_delay_up" = "Oudiovertraging + %@s";
+"menu.audio_delay_down" = "Oudiovertraging - %@s";
+"menu.sub_delay_up" = "Onderskrifvertraging + %@s";
+"menu.sub_delay_down" = "Onderskrifvertraging - %@s";
 
 "menu.crop_custom" = "Pasgemaak…";
 "menu.find_online_sub" = "Soek aanlyn na onderskrifte van %@";
@@ -262,8 +263,6 @@
 "alert.config.new.message" = "Voer ’n naam vir die nuwe konfigurasie in.";
 "alert.config.duplicate.title" = "Duplikaat konfigurasie";
 "alert.config.duplicate.message" = "Voer ’n naam vir die gedupliseerde konfigurasielêer in.";
-"alert.config.empty_name" = "Die naam mag nie leeg wees nie.";
-"alert.config.name_existing" = "A config with the same name already exists.";
 "alert.config.file_existing.title" = "Lêer bestaan reeds";
 "alert.config.file_existing.message" = "A config file with the same filename already exists. Choose OK to show the file in Finder.";
 "alert.config.cannot_create" = "Kan nie konfigurasielêer skep nie!\n%@";
@@ -358,6 +357,11 @@
 
 "playlist.total_length" = "%@ in totaal";
 "playlist.total_length_with_selected" = "%@ van %@ geselekteer";
+"playlist.sorting.header" = "Sorting";
+"playlist.sorting.filename_ascending" = "Filename Ascending";
+"playlist.sorting.filename_descending" = "Filename Descending";
+"playlist.sorting.path_ascending" = "File Path Ascending";
+"playlist.sorting.path_descending" = "File Path Descending";
 "pl_menu.title_multi" = "%d items";
 "pl_menu.play_next" = "Speel volgende af";
 "pl_menu.play_in_new_window" = "Speel af in nuwe venster";
@@ -408,6 +412,7 @@
 "mini_player.volume" = "Volume";
 "mini_player.close" = "Sluit musiekmodus";
 "mini_player.back" = "Keer terug na videomodus";
+"mini_player.sort" = "Sort the playlist";
 
 // Touch bar
 

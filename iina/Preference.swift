@@ -59,7 +59,6 @@ struct Preference {
     static let fullScreenWhenOpen = Key("fullScreenWhenOpen")
 
     static let useLegacyFullScreen = Key("useLegacyFullScreen")
-    static let legacyFullScreenAnimation = Key("legacyFullScreenAnimation")
 
     /** Black out other monitors while fullscreen (bool) */
     static let blackOutMonitor = Key("blackOutMonitor")
@@ -139,6 +138,8 @@ struct Preference {
     static let resizeWindowOption = Key("resizeWindowOption")
 
     static let oscPosition = Key("oscPosition")
+    static let disablePlaySliderScrolling = Key("disablePlaySliderScrolling")
+    static let disableVolumeSliderScrolling = Key("disableVolumeSliderScrolling")
 
     static let playlistWidth = Key("playlistWidth")
     static let prefetchPlaylistVideoDuration = Key("prefetchPlaylistVideoDuration")
@@ -157,6 +158,7 @@ struct Preference {
     static let windowBehaviorWhenPip = Key("windowBehaviorWhenPip")
     static let pauseWhenPip = Key("pauseWhenPip")
     static let togglePipByMinimizingWindow = Key("togglePipByMinimizingWindow")
+    static let togglePipByMinimizingWindowForVideoOnly = Key("togglePipByMinimizingWindowForVideoOnly")
 
     static let disableAnimations = Key("disableAnimations")
 
@@ -235,6 +237,8 @@ struct Preference {
     static let defaultCacheSize = Key("defaultCacheSize")
     static let cacheBufferSize = Key("cacheBufferSize")
     static let secPrefech = Key("secPrefech")
+    static let showBufferingThrobber = Key("showBufferingThrobber")
+    static let showSeekingThrobber = Key("showSeekingThrobber")
     static let userAgent = Key("userAgent")
     static let transportRTSPThrough = Key("transportRTSPThrough")
     static let ytdlEnabled = Key("ytdlEnabled")
@@ -253,6 +257,7 @@ struct Preference {
     static let arrowButtonAction = Key("arrowBtnAction")
     /** (1~4) */
     static let volumeScrollAmount = Key("volumeScrollAmount")
+    static let playbackSpeedScrollAmount = Key("playbackSpeedScrollAmount")
     static let verticalScrollAction = Key("verticalScrollAction")
     static let horizontalScrollAction = Key("horizontalScrollAction")
 
@@ -265,6 +270,7 @@ struct Preference {
     static let forceTouchAction = Key("forceTouchAction")
 
     static let showRemainingTime = Key("showRemainingTime")
+    static let scaleRemainingTime = Key("scaleRemainingTime")
     static let timeDisplayPrecision = Key("timeDisplayPrecision")
     static let touchbarShowRemainingTime = Key("touchbarShowRemainingTime")
 
@@ -328,6 +334,10 @@ struct Preference {
     /// To confirm this the workaround is being disabled by default using this preference. Should all go well this workaround will be
     /// removed in the future.
     static let enableHdrWorkaround = Key("enableHdrWorkaround")
+
+    /// Internal setting to allow disabling the new feature that shows cover artwork in the Now Playing module in case a serious
+    /// problem is encountered.
+    static let enableNowPlayingArtwork = Key("enableNowPlayingArtwork")
   }
 
   // MARK: - Enums
@@ -404,6 +414,8 @@ struct Preference {
     case pause
     case hideOSC
     case togglePIP
+    case abLoop
+    case resetSpeed
 
     static var defaultValue = MouseClickAction.none
 
@@ -417,6 +429,7 @@ struct Preference {
     case seek
     case none
     case passToMpv
+    case playbackSpeed
 
     static var defaultValue = ScrollAction.volume
 
@@ -790,6 +803,8 @@ struct Preference {
     .enableControlBarAutoHide: true,
     .controlBarToolbarButtons: [ToolBarButton.plugins.rawValue, ToolBarButton.pip.rawValue, ToolBarButton.playlist.rawValue, ToolBarButton.settings.rawValue],
     .oscPosition: OSCPosition.floating.rawValue,
+    .disablePlaySliderScrolling: false,
+    .disableVolumeSliderScrolling: false,
     .playlistWidth: 270,
     .prefetchPlaylistVideoDuration: true,
     .themeMaterial: Theme.dark.rawValue,
@@ -805,7 +820,6 @@ struct Preference {
     .pauseWhenOpen: false,
     .fullScreenWhenOpen: false,
     .useLegacyFullScreen: false,
-    .legacyFullScreenAnimation: false,
     .showChapterPos: false,
     .resumeLastPosition: true,
     .preventScreenSaver: true,
@@ -834,6 +848,7 @@ struct Preference {
     .resizeWindowTiming: ResizeWindowTiming.onlyWhenOpen.rawValue,
     .resizeWindowOption: ResizeWindowOption.videoSize10.rawValue,
     .showRemainingTime: false,
+    .scaleRemainingTime: false,
     .timeDisplayPrecision: 0,
     .touchbarShowRemainingTime: true,
     .enableThumbnailPreview: true,
@@ -848,6 +863,7 @@ struct Preference {
     .windowBehaviorWhenPip: WindowBehaviorWhenPip.doNothing.rawValue,
     .pauseWhenPip: false,
     .togglePipByMinimizingWindow: false,
+    .togglePipByMinimizingWindowForVideoOnly: false,
     .disableAnimations: false,
 
     .videoThreads: 0,
@@ -912,6 +928,8 @@ struct Preference {
     .defaultCacheSize: 153600,
     .cacheBufferSize: 153600,
     .secPrefech: 36000,
+    .showBufferingThrobber: true,
+    .showSeekingThrobber: true,
     .userAgent: "",
     .transportRTSPThrough: RTSPTransportation.tcp.rawValue,
     .ytdlEnabled: true,
@@ -937,6 +955,7 @@ struct Preference {
     .followGlobalSeekTypeWhenAdjustSlider: false,
     .relativeSeekAmount: 3,
     .volumeScrollAmount: 3,
+    .playbackSpeedScrollAmount: 3,
     .verticalScrollAction: ScrollAction.volume.rawValue,
     .horizontalScrollAction: ScrollAction.seek.rawValue,
     .videoViewAcceptsFirstMouse: false,
@@ -963,7 +982,8 @@ struct Preference {
     .recentDocuments: [Any](),
 
     .enableFFmpegImageDecoder: true,
-    .enableHdrWorkaround: false
+    .enableHdrWorkaround: false,
+    .enableNowPlayingArtwork: true
   ]
 
 

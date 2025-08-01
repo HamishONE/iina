@@ -860,7 +860,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
       // enqueue
       let playlistEmpty = PlayerCore.lastActive.info.$playlist.withLock { $0.isEmpty }
       if let enqueueValue = queryDict["enqueue"], enqueueValue == "1", !playlistEmpty {
-        PlayerCore.lastActive.addToPlaylist(urlValue)
+        PlayerCore.lastActive.appendToPlaylist(urlValue)
         PlayerCore.lastActive.postNotification(.iinaPlaylistChanged)
         PlayerCore.lastActive.sendOSD(.addToPlaylist(1))
       } else {
@@ -1323,7 +1323,7 @@ class RemoteCommandController {
 
   // MARK: - Private Functions
 
-  private func log(_ message: String, level: Logger.Level = .debug) {
+  private func log(_ message: @autoclosure () -> String, level: Logger.Level = .debug) {
     Logger.log(message, level: level, subsystem: Logger.Sub.nowPlaying)
   }
 

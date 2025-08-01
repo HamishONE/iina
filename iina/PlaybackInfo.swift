@@ -56,20 +56,20 @@ class PlaybackInfo {
       player.log("State changed from \(oldValue) to \(state)", level: .verbose)
       switch state {
       case .idle:
-        PlayerCore.checkStatusForSleep()
+        SleepPreventer.updateSleepPrevention()
         NowPlayingInfoManager.shared.updateInfo()
       case .playing:
-        PlayerCore.checkStatusForSleep()
+        SleepPreventer.updateSleepPrevention()
         if player == PlayerCore.lastActive {
-          NowPlayingInfoManager.shared.updateInfo(state: .playing)
+          NowPlayingInfoManager.shared.updateInfo()
           if player.mainWindow.pipStatus == .inPIP {
             player.mainWindow.pip.playing = true
           }
         }
       case .paused:
-        PlayerCore.checkStatusForSleep()
+        SleepPreventer.updateSleepPrevention()
         if player == PlayerCore.lastActive {
-          NowPlayingInfoManager.shared.updateInfo(state: .paused)
+          NowPlayingInfoManager.shared.updateInfo()
           if player.mainWindow.pipStatus == .inPIP {
             player.mainWindow.pip.playing = false
           }
@@ -103,6 +103,12 @@ class PlaybackInfo {
 
   var videoPosition: VideoTime?
   var videoDuration: VideoTime?
+
+  /// Remaining playback time.
+  ///
+  /// This will or will not reflect the speed at which playback is occurring depending upon whether the `scaleRemainingTime`
+  /// setting is enabled or not.
+  var videoRemaining: VideoTime?
 
   var cachedWindowScale: Double = 1.0
 

@@ -19,7 +19,7 @@ class VideoView: NSView {
     return layer
   }()
 
-  @Atomic var isUninited = false
+  @ReadWriteAtomic var isUninited = false
 
   var draggingTimer: Timer?
 
@@ -41,6 +41,9 @@ class VideoView: NSView {
   lazy var subsystem = Logger.makeSubsystem("video\(player.playerNumber)")
 
   static let SRGB = CGColorSpaceCreateDeviceRGB()
+
+  // record the last mouse up event which lands on video view
+  var lastEventId: Int?
 
   // MARK: - Attributes
 
@@ -85,7 +88,7 @@ class VideoView: NSView {
   func uninit() {
     player.mpv.lockAndSetOpenGLContext()
     defer { player.mpv.unlockOpenGLContext() }
-    $isUninited.withLock() { isUninited in
+    $isUninited.withWriteLock() { isUninited in
       guard !isUninited else { return }
       isUninited = true
 
@@ -123,6 +126,7 @@ class VideoView: NSView {
   /// This appears to be a defect in the Cocoa framework. See the issue for details. As a workaround the mouse up event is caught in
   /// the view which then calls the window controller's method.
   override func mouseUp(with event: NSEvent) {
+    lastEventId = event.eventNumber
     // Only check for Big Sur or greater, not if the preference use legacy full screen is enabled as
     // that can be changed while running and once the window title has been removed and added back
     // AppKit malfunctions from then on. The check for running under Big Sur or later isn't really
@@ -522,7 +526,7 @@ extension VideoView {
     Logger.log(message, level: level, subsystem: hdrSubsystem)
   }
 
-  func log(_ message: String, level: Logger.Level = .debug) {
+  func log(_ message: @autoclosure () -> String, level: Logger.Level = .debug) {
     Logger.log(message, level: level, subsystem: subsystem)
   }
 }
@@ -534,7 +538,7 @@ fileprivate func displayLinkCallback(
   _ flagsOut: UnsafeMutablePointer<CVOptionFlags>,
   _ context: UnsafeMutableRawPointer?) -> CVReturn {
   let videoView = unsafeBitCast(context, to: VideoView.self)
-  videoView.$isUninited.withLock() { isUninited in
+  videoView.$isUninited.withReadLock() { isUninited in
     guard !isUninited else { return }
     videoView.player.mpv.mpvReportSwap()
   }

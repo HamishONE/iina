@@ -191,6 +191,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
   private lazy var eqSliders: [NSSlider] = [audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
                                             audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10]
+  private lazy var colorWells: [NSColorWell] = [subTextColorWell, subTextBgColorWell, subTextBorderColorWell]
 
   private var lastUsedProfileName: String = ""
   private var inputString: String = ""
@@ -232,6 +233,12 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     switchHorizontalLine.layer?.opacity = 0.5
     switchHorizontalLine2.wantsLayer = true
     switchHorizontalLine2.layer?.opacity = 0.5
+
+    if #available(macOS 13.0, *) {
+      colorWells.forEach {
+        $0.colorWellStyle = .minimal
+      }
+    }
 
     // Localize decimal format of numbers
     speedSlider0_25xLabel.stringValue = "\(0.25.groupedStringUpTo6Decimals)x"
@@ -799,15 +806,20 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
   @IBAction func audioDelayChangedAction(_ sender: NSSlider) {
     let eventType = NSApp.currentEvent!.type
-    if eventType == .leftMouseDown {
-      sender.allowsTickMarkValuesOnly = true
+    let sliderValue: Double
+    switch eventType {
+    case .leftMouseDown, .leftMouseDragged, .leftMouseUp:
+      // When dragging slider with the mouse, snap to the nearest 50ms (1/20 sec)
+      // Although it is possible to show tick marks at every step of 0.05 in the slider, it is visually unpleasant.
+      // So we draw less tick marks, and keep "Only stop on tick marks" disabled, and add our own logic to stop on
+      // "virtual tick marks" for these values.
+      sliderValue = (sender.doubleValue * 20.0).rounded() / 20.0
+      sender.doubleValue = sliderValue
+    default:
+      sliderValue = sender.doubleValue
     }
-    if eventType == .leftMouseUp {
-      sender.allowsTickMarkValuesOnly = false
-    }
-    let sliderValue = sender.doubleValue
     customAudioDelayTextField.doubleValue = sliderValue
-    redraw(indicator: audioDelaySliderIndicator, constraint: audioDelaySliderConstraint, slider: audioDelaySlider, value: "\(customAudioDelayTextField.stringValue)s")
+    redraw(indicator: audioDelaySliderIndicator, constraint: audioDelaySliderConstraint, slider: audioDelaySlider, value: "\(sliderValue)s")
     if let event = NSApp.currentEvent {
       if event.type == .leftMouseUp {
         player.setAudioDelay(sliderValue)
@@ -852,8 +864,11 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBAction func loadExternalSubAction(_ sender: NSSegmentedControl) {
     if sender.selectedSegment == 0 {
       let currentDir = player.info.currentURL?.deletingLastPathComponent()
+      // In addition to subtitle files allow the user to choose video files as mpv will look for
+      // and load embedded subtitle streams in the video file.
       Utility.quickOpenPanel(title: "Load external subtitle", chooseDir: false, dir: currentDir,
-                             sheetWindow: player.currentWindow, allowedFileTypes: Utility.supportedFileExt[.sub]) { url in
+                             sheetWindow: player.currentWindow,
+                             allowedFileTypes: Utility.containsSubExt) { url in
         // set a delay
         self.player.loadExternalSubFile(url, delay: true)
         self.subTableView.reloadData()

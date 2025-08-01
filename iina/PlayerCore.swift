@@ -7,7 +7,6 @@
 //
 
 import Cocoa
-import MediaPlayer
 
 class PlayerCore: NSObject {
 
@@ -61,7 +60,7 @@ class PlayerCore: NSObject {
     }
   }
 
-  static var playing: [PlayerCore] {
+  static var nonIdle: [PlayerCore] {
     return playerCores.filter { $0.info.state != .idle }
   }
 
@@ -132,7 +131,7 @@ class PlayerCore: NSObject {
 
   lazy var subsystem = Logger.makeSubsystem("player\(label!)")
 
-  func log(_ message: String, level: Logger.Level = .debug) {
+  func log(_ message: @autoclosure () -> String, level: Logger.Level = .debug) {
     Logger.log(message, level: level, subsystem: subsystem)
   }
 
@@ -411,7 +410,7 @@ class PlayerCore: NSObject {
     open(playableFiles[0])
     // add the remaining to playlist
     playableFiles[1..<count].forEach { url in
-      addToPlaylist(url.isFileURL ? url.path : url.absoluteString)
+      mpv.playlistAppend(url.isFileURL ? url.path : url.absoluteString)
     }
 
     // refresh playlist
@@ -466,6 +465,17 @@ class PlayerCore: NSObject {
     log("Opening \(path) in main window")
     info.currentURL = url
     info.isNetworkResource = isNetwork
+    info.audioTracks = []
+    info.chapters = []
+    info.playlist = []
+    info.subTracks = []
+    info.thumbnails = []
+    info.thumbnailsReady = false
+    info.videoDuration = nil
+    info.videoHeight = nil
+    info.videoPosition = nil
+    info.videoTracks = []
+    info.videoWidth = nil
     if isNetwork {
       AppDelegate.shared.openURLWindow.showLoadingScreen(playerCore: self)
     }
@@ -576,6 +586,7 @@ class PlayerCore: NSObject {
     // init mpv render context.
     mpv.mpvInitRendering()
     mainWindow.videoView.startDisplayLink()
+    log("Initialized rendering")
   }
 
   // unload main window video view
@@ -676,6 +687,11 @@ class PlayerCore: NSObject {
                  level: .verbose, subsystem: subsystem)
     }
 
+    // The call to orderOut handles being in full screen mode if using the AppKit supplied full
+    // screen mode, but if legacy full screen mode is being used then IINA needs to handle it.
+    if mainWindow.fsState.isFullscreen, Preference.bool(for: .useLegacyFullScreen) {
+      mainWindow.toggleWindowFullScreen()
+    }
     // hide main window
     mainWindow.window?.orderOut(self)
 
@@ -741,7 +757,7 @@ class PlayerCore: NSObject {
     if showMiniPlayer {
       notifyWindowVideoSizeChanged()
     }
-    videoView.videoLayer.draw(forced: true)
+    mainWindow.forceDraw("entered music mode")
     events.emit(.musicModeChanged, data: true)
   }
 
@@ -789,7 +805,7 @@ class PlayerCore: NSObject {
       mainWindow.updateTitle()
       notifyWindowVideoSizeChanged()
     }
-    mainWindow.videoView.videoLayer.draw(forced: true)
+    mainWindow.forceDraw("exited music mode")
     events.emit(.musicModeChanged, data: false)
   }
 
@@ -1367,30 +1383,43 @@ class PlayerCore: NSObject {
     mpv.setDouble(option, delay)
   }
 
-  private func _addToPlaylist(_ path: String) {
-    mpv.command(.loadfile, args: [path, "append"], level: .verbose)
-  }
-
-  func addToPlaylist(_ path: String, silent: Bool = false) {
-    _addToPlaylist(path)
+  func appendToPlaylist(_ path: String, silent: Bool = false) {
+    mpv.playlistAppend(path)
     if !silent {
       postNotification(.iinaPlaylistChanged)
     }
   }
 
-  private func _playlistMove(_ from: Int, to: Int) {
-    mpv.command(.playlistMove, args: ["\(from)", "\(to)"], level: .verbose)
+  func playlistMove(_ from: Int, to: Int) {
+    mpv.playlistMove(from, to: to)
+    postNotification(.iinaPlaylistChanged)
   }
 
-  func playlistMove(_ from: Int, to: Int) {
-    _playlistMove(from, to: to)
+  func playlistReorder(newPlaylist: [MPVPlaylistItem]) {
+    guard Set(info.playlist) == Set(newPlaylist) else { return }
+    if info.playlist == newPlaylist { return }
+    mpv.command(.playlistClear)
+    guard let currentPlaying = newPlaylist.firstIndex(where: { $0.isPlaying } ) else {
+      for item in newPlaylist {
+        mpv.playlistAppend(item.filename)
+      }
+      return
+    }
+
+    for i in (0..<currentPlaying).reversed() {
+      mpv.playlistInsert(newPlaylist[i].filename, index: 0)
+    }
+    for i in currentPlaying + 1..<newPlaylist.count {
+      mpv.playlistAppend(newPlaylist[i].filename)
+    }
+
     postNotification(.iinaPlaylistChanged)
   }
 
   func addToPlaylist(paths: [String], at index: Int = -1) {
     getPlaylist()
     for path in paths {
-      _addToPlaylist(path)
+      mpv.playlistAppend(path)
     }
     let previousCount = info.$playlist.withLock { $0.count }
     if index <= previousCount && index >= 0 {
@@ -1401,12 +1430,8 @@ class PlayerCore: NSObject {
     postNotification(.iinaPlaylistChanged)
   }
 
-  private func _playlistRemove(_ index: Int) {
-    mpv.command(.playlistRemove, args: [index.description])
-  }
-
   func playlistRemove(_ index: Int) {
-    _playlistRemove(index)
+    mpv.playlistRemove(index)
     postNotification(.iinaPlaylistChanged)
   }
 
@@ -1414,7 +1439,7 @@ class PlayerCore: NSObject {
     guard !indexSet.isEmpty else { return }
     var count = 0
     for i in indexSet {
-      _playlistRemove(i - count)
+      mpv.playlistRemove(i - count)
       count += 1
     }
     postNotification(.iinaPlaylistChanged)
@@ -1849,7 +1874,7 @@ class PlayerCore: NSObject {
       }
     }
 
-    NowPlayingInfoManager.shared.updateInfo(state: .playing, withTitle: true)
+    NowPlayingInfoManager.shared.updateInfo(withTitle: true)
 
     // Auto load
     $backgroundQueueTicket.withLock { $0 += 1 }
@@ -1925,13 +1950,16 @@ class PlayerCore: NSObject {
     // Must force drawing to cover the case where this player was previously used to play a video
     // and is now playing an audio file without an album cover and without using music mode.
     // See issue #5403.
-    mainWindow.videoView.videoLayer.draw(forced: true)
+    mainWindow.forceDraw("file loaded")
 
     // Get video size and set the initial window size
     let width = mpv.getInt(MPVProperty.width)
     let height = mpv.getInt(MPVProperty.height)
     let duration = mpv.getDouble(MPVProperty.duration)
     let pos = mpv.getDouble(MPVProperty.timePos)
+    let remaining = Preference.bool(for: .scaleRemainingTime) ?
+      mpv.getDouble(MPVProperty.playtimeRemainingFull) :
+      mpv.getDouble(MPVProperty.timeRemainingFull)
     info.videoHeight = height
     info.videoWidth = width
     info.displayWidth = 0
@@ -1941,6 +1969,7 @@ class PlayerCore: NSObject {
       info.setCachedVideoDuration(filename, duration)
     }
     info.videoPosition = VideoTime(pos)
+    info.videoRemaining = VideoTime(remaining)
     triedUsingExactSeekForCurrentFile = false
     checkUnsyncedWindowOptions()
     // generate thumbnails if window has loaded video
@@ -1956,8 +1985,8 @@ class PlayerCore: NSObject {
     touchBarSupport.setupTouchBarUI()
 
     if info.aid == 0 {
-      mainWindow.muteButton.isEnabled = false
-      mainWindow.volumeSlider.isEnabled = false
+      mainWindow.muteButton.isHidden = true
+      mainWindow.volumeSlider.isHidden = true
     }
 
     if info.vid == 0 {
@@ -2007,8 +2036,8 @@ class PlayerCore: NSObject {
     guard info.state.active else { return }
     info.aid = Int(mpv.getInt(MPVOption.TrackSelection.aid))
     guard mainWindow.loaded else { return }
-    mainWindow?.muteButton.isEnabled = (info.aid != 0)
-    mainWindow?.volumeSlider.isEnabled = (info.aid != 0)
+    mainWindow?.muteButton.isHidden = (info.aid == 0)
+    mainWindow?.volumeSlider.isHidden = (info.aid == 0)
     postNotification(.iinaAIDChanged)
     sendOSD(.track(info.currentTrack(.audio) ?? .noneAudioTrack))
   }
@@ -2077,6 +2106,9 @@ class PlayerCore: NSObject {
     guard mainWindow.loaded, info.state.loaded else { return }
     if (info.state == .paused) != paused {
       sendOSD(paused ? .pause : .resume)
+      // The NowPlayingInfoManager is notified when playback is paused or resumed. The video
+      // position must be updated before notifying the manager.
+      syncUITime()
       info.state = paused ? .paused : .playing
       refreshSyncUITimer()
       // Follow energy efficiency best practices and ensure IINA is absolutely idle when the video
@@ -2426,11 +2458,15 @@ class PlayerCore: NSObject {
         info.videoPosition?.second = mpv.getDouble(MPVProperty.timePos)
       }
       info.constrainVideoPosition()
+      info.videoRemaining?.second = Preference.bool(for: .scaleRemainingTime) ?
+        mpv.getDouble(MPVProperty.playtimeRemainingFull) :
+        mpv.getDouble(MPVProperty.timeRemainingFull)
       if isNetworkStream || true {  // Get cacheTime even if not network resource because could be SMB network share that MPV does cache
         // Update cache info
         info.pausedForCache = mpv.getFlag(MPVProperty.pausedForCache)
-        info.cacheUsed = ((mpv.getNode(MPVProperty.demuxerCacheState) as? [String: Any])?["fw-bytes"] as? Int) ?? 0
-        info.cacheSpeed = mpv.getInt(MPVProperty.cacheSpeed)
+        let cacheState = mpv.getNode(MPVProperty.demuxerCacheState) as? [String: Any] ?? [:]
+        info.cacheUsed = Int(cacheState["fw-bytes"] as? Int64 ?? 0)
+        info.cacheSpeed = Int(cacheState["raw-input-rate"] as? Int64 ?? 0)
         info.cacheTime = mpv.getInt(MPVProperty.demuxerCacheTime)
         info.bufferingState = mpv.getInt(MPVProperty.cacheBufferingState)
       }
@@ -2551,6 +2587,9 @@ class PlayerCore: NSObject {
             self.info.thumbnailsReady = true
             self.info.thumbnailsProgress = 1
             self.refreshTouchBarSlider()
+            // OSC thumbnails may be used in Now Playing. Notify the manager thumbnails are now
+            // available.
+            DispatchQueue.main.async { NowPlayingInfoManager.shared.updateInfo() }
           } else {
             self.log("Cannot read thumbnail from cache", level: .error)
           }
@@ -2593,6 +2632,7 @@ class PlayerCore: NSObject {
                              type: MPVTrack.TrackType(rawValue: trackType)!,
                              isDefault: mpv.getFlag(MPVProperty.trackListNDefault(index)),
                              isForced: mpv.getFlag(MPVProperty.trackListNForced(index)),
+                             isImage: mpv.getFlag(MPVProperty.trackListNImage(index)),
                              isSelected: mpv.getFlag(MPVProperty.trackListNSelected(index)),
                              isExternal: mpv.getFlag(MPVProperty.trackListNExternal(index)))
         track.srcId = mpv.getInt(MPVProperty.trackListNSrcId(index))
@@ -2844,7 +2884,6 @@ class PlayerCore: NSObject {
   var currentMediaIsAudio = CurrentMediaIsAudioStatus.unknown
 
   func checkCurrentMediaIsAudio() -> CurrentMediaIsAudioStatus {
-    guard !info.isNetworkResource else { return .notAudio }
     let noVideoTrack = info.videoTracks.isEmpty
     let noAudioTrack = info.audioTracks.isEmpty
     if noVideoTrack && noAudioTrack {
@@ -2852,31 +2891,6 @@ class PlayerCore: NSObject {
     }
     let allVideoTracksAreAlbumCover = !info.videoTracks.contains { !$0.isAlbumart }
     return (noVideoTrack || allVideoTracksAreAlbumCover) ? .isAudio : .notAudio
-  }
-
-  static func checkStatusForSleep() {
-    guard Preference.bool(for: .preventScreenSaver) else {
-      SleepPreventer.allowSleep()
-      return
-    }
-    // Look for players actively playing that are not in music mode and are not just playing audio.
-    for player in playing {
-      guard player.info.state == .playing,
-            player.info.isAudio != .isAudio && !player.isInMiniPlayer else { continue }
-      SleepPreventer.preventSleep()
-      return
-    }
-    // Now look for players in music mode or playing audio.
-    for player in playing {
-      guard player.info.state == .playing,
-            player.info.isAudio == .isAudio || player.isInMiniPlayer else { continue }
-      // Either prevent the screen saver from activating or prevent system from sleeping depending
-      // upon user setting.
-      SleepPreventer.preventSleep(allowScreenSaver: Preference.bool(for: .allowScreenSaverForAudio))
-      return
-    }
-    // No players are actively playing.
-    SleepPreventer.allowSleep()
   }
 }
 
@@ -2901,103 +2915,12 @@ extension PlayerCore: FFmpegControllerDelegate {
       info.thumbnailsReady = true
       info.thumbnailsProgress = 1
       refreshTouchBarSlider()
+      // OSC thumbnails may be used in Now Playing. Notify the manager thumbnails are now available.
+      DispatchQueue.main.async { NowPlayingInfoManager.shared.updateInfo() }
       backgroundQueue.async {
         ThumbnailCache.write(self.info.thumbnails, forVideo: self.info.currentURL)
       }
       events.emit(.thumbnailsReady)
     }
   }
-}
-
-/// Manager that supports using the macOS
-/// [Control Center](https://support.apple.com/guide/mac-help/quickly-change-settings-mchl50f94f8f/mac)
-/// Now Playing module.
-///
-/// The macOS [Control Center](https://support.apple.com/guide/mac-help/quickly-change-settings-mchl50f94f8f/mac)
-/// contains a Now Playing module. This module can also be configured to be directly accessible from the menu bar. Now Playing
-/// displays the title of the media currently  playing and other information about the state of playback. It also can be used to control
-/// playback.
-///
-/// The IINA setting `Use system media control` found on the `Key Bindings` tab of IINA's settings controls use of this
-/// macOS feature. This class handles the use of the AppKit class
-/// [MPNowPlayingInfoCenter](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter)
-/// which allows IINA to populate the information shown in the Now Playing module. This class makes use of the IINA class
-/// `RemoteCommandController` to address the other aspect of [becoming a now playable app](https://developer.apple.com/documentation/mediaplayer/becoming-a-now-playable-app)], handling
-/// remote commands.
-/// - Important: As IINA is assuming control over a shared macOS feature it is critical that IINA releases control when no media is
-///     open. See issue [#4331](https://github.com/iina/iina/issues/4331).
-class NowPlayingInfoManager {
-  /// The `NowPlayingInfoManager` singleton object.
-  static let shared = NowPlayingInfoManager()
-
-  /// Whether a Now Playing session is active.
-  private var isActive = false
-
-  /// Update the information shown by macOS in the
-  /// [Control Center](https://support.apple.com/guide/mac-help/quickly-change-settings-mchl50f94f8f/mac)
-  /// Now Playing module.
-  /// - Important: This method **must** be run on the main thread because it references `PlayerCore.lastActive`.
-  func updateInfo(state: MPNowPlayingPlaybackState? = nil, withTitle: Bool = false) {
-    guard RemoteCommandController.useSystemMediaControl else { return }
-    let center = MPNowPlayingInfoCenter.default()
-    var info = center.nowPlayingInfo ?? [String: Any]()
-
-    let activePlayer = PlayerCore.lastActive
-    guard activePlayer.info.state.active else {
-      RemoteCommandController.shared.disable()
-      center.nowPlayingInfo = nil
-      center.playbackState = .stopped
-      isActive = false
-      log("Ended Now Playing session")
-      return
-    }
-    if withTitle {
-      if activePlayer.currentMediaIsAudio == .isAudio {
-        info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
-        let (title, album, artist) = activePlayer.getMusicMetadata()
-        info[MPMediaItemPropertyTitle] = title
-        info[MPMediaItemPropertyAlbumTitle] = album
-        info[MPMediaItemPropertyArtist] = artist
-      } else {
-        info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.video.rawValue
-        info[MPMediaItemPropertyTitle] = activePlayer.getMediaTitle(withExtension: false)
-        info[MPMediaItemPropertyAlbumTitle] = ""
-        info[MPMediaItemPropertyArtist] = ""
-      }
-    }
-
-    let duration = PlayerCore.lastActive.info.videoDuration?.second ?? 0
-    let time = activePlayer.info.videoPosition?.second ?? 0
-    let speed = activePlayer.info.playSpeed
-
-    info[MPMediaItemPropertyPlaybackDuration] = duration
-    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = time
-    info[MPNowPlayingInfoPropertyPlaybackRate] = speed
-    info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1
-
-    center.nowPlayingInfo = info
-
-    if state != nil {
-      center.playbackState = state!
-    }
-    if isActive {
-      log("Updated Now Playing information", level: .verbose)
-    } else {
-      isActive = true
-      log("Started Now Playing session")
-    }
-    RemoteCommandController.shared.enable()
-  }
-
-  // MARK: - Private Functions
-
-  private func log(_ message: String, level: Logger.Level = .debug) {
-    Logger.log(message, level: level, subsystem: Logger.Sub.nowPlaying)
-  }
-
-  private init() {}
-}
-
-extension Logger.Sub {
-  static let nowPlaying = Logger.makeSubsystem("now-playing")
 }
