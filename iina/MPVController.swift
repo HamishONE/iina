@@ -140,7 +140,8 @@ class MPVController: NSObject {
     MPVProperty.videoParamsRotate: MPV_FORMAT_INT64,
     MPVProperty.videoParamsPrimaries: MPV_FORMAT_STRING,
     MPVProperty.videoParamsGamma: MPV_FORMAT_STRING,
-    MPVProperty.idleActive: MPV_FORMAT_FLAG
+    MPVProperty.idleActive: MPV_FORMAT_FLAG,
+    MPVProperty.currentAo: MPV_FORMAT_STRING
   ]
 
   /// Map from mpv codec name to core media video codec types.
@@ -1136,9 +1137,20 @@ class MPVController: NSObject {
 
     case MPV_EVENT_END_FILE:
       let reason = event.pointee.data.load(as: mpv_end_file_reason.self)
-      DispatchQueue.main.async {
-        self.player.fileEnded(dueToStopCommand: reason == MPV_END_FILE_REASON_STOP)
+      let dueToStopCommand = reason == MPV_END_FILE_REASON_STOP
+      // When the IINA "Pause" setting is enabled under "When media is opened" IINA must tell mpv to
+      // pause playback ASAP. Events are delivered asynchronously. If the IINA
+      // "Play next item automatically" setting is enabled mpv will currently be loading the next
+      // item in the playlist and will immediately start playing it as soon as loading completes.
+      // Thus there is a race condition as to whether IINA can pause playback before mpv starts
+      // playing the media. This is more likely to happen with audio files that can be quickly
+      // loaded. As handling this does not require accessing IINA state not protected by locks and
+      // only available to the main thread along with the requirement to pause playback ASAP we will
+      // not leave this to the PlayerCore function and handle this now before calling fileEnded.
+      if !dueToStopCommand, Preference.bool(for: .pauseWhenOpen) {
+        setFlag(MPVOption.PlaybackControl.pause, true, level: .verbose)
       }
+      DispatchQueue.main.async { self.player.fileEnded(dueToStopCommand) }
 
     case MPV_EVENT_COMMAND_REPLY:
       let reply = event.pointee.reply_userdata
@@ -1450,6 +1462,9 @@ class MPVController: NSObject {
       }
       guard idleActive else { break }
       DispatchQueue.main.async { self.player.idleActiveChanged() }
+
+    case MPVProperty.currentAo:
+      DispatchQueue.main.async { self.player.currentAoChanged() }
 
     default:
       // Utility.log("MPV property changed (unhandled): \(name)")
