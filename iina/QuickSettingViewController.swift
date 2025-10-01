@@ -182,16 +182,28 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   @IBOutlet weak var subScaleResetBtn: NSButton!
   @IBOutlet weak var subPosSlider: NSSlider!
 
-  @IBOutlet weak var subTextColorWell: NSColorWell!
+  var subTextColorWell: NSColorWell!
+  var subTextBorderColorWell: NSColorWell!
+  var subTextBgColorWell: NSColorWell!
+
+  @IBOutlet weak var subTextColorWellContainer: NSView!
   @IBOutlet weak var subTextSizePopUp: NSPopUpButton!
-  @IBOutlet weak var subTextBorderColorWell: NSColorWell!
+  @IBOutlet weak var subTextBorderColorWellContainer: NSView!
   @IBOutlet weak var subTextBorderWidthPopUp: NSPopUpButton!
-  @IBOutlet weak var subTextBgColorWell: NSColorWell!
+  @IBOutlet weak var subTextBgColorWellContainer: NSView!
   @IBOutlet weak var subTextFontBtn: NSButton!
 
-  private lazy var eqSliders: [NSSlider] = [audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
-                                            audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10]
-  private lazy var colorWells: [NSColorWell] = [subTextColorWell, subTextBgColorWell, subTextBorderColorWell]
+  @IBOutlet weak var subtitleSwitch: NSSwitch!
+  @IBOutlet weak var secondarySubtitleSwitch: NSSwitch!
+  
+  private lazy var audioEQSliders: [NSSlider] = [
+    audioEqSlider1, audioEqSlider2, audioEqSlider3, audioEqSlider4, audioEqSlider5,
+    audioEqSlider6, audioEqSlider7, audioEqSlider8, audioEqSlider9, audioEqSlider10
+  ]
+
+  private lazy var videoEQSliders: [NSSlider] = [
+    brightnessSlider, contrastSlider, saturationSlider, gammaSlider, hueSlider
+  ]
 
   private var lastUsedProfileName: String = ""
   private var inputString: String = ""
@@ -216,6 +228,36 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
       view.superview?.superview?.layer?.cornerRadius = 4
     }
 
+    // Color Wells
+    if #available(macOS 13.0, *) {
+      subTextColorWell = NSColorWell(style: .minimal)
+      subTextBgColorWell = NSColorWell(style: .minimal)
+      subTextBorderColorWell = NSColorWell(style: .minimal)
+    } else {
+      subTextColorWell = RoundedColorWell()
+      subTextBgColorWell = RoundedColorWell()
+      subTextBorderColorWell = RoundedColorWell()
+    }
+    [(subTextColorWellContainer, subTextColorWell),
+     (subTextBgColorWellContainer, subTextBgColorWell),
+     (subTextBorderColorWellContainer, subTextBorderColorWell)].forEach { (view, well) in
+      well.translatesAutoresizingMaskIntoConstraints = false
+      view.addSubview(well)
+      Utility.quickConstraints(["H:|[v]|", "V:|[v]|"], ["v": well])
+    }
+    
+    if #available(macOS 26, *) {
+      subtitleSwitch.controlSize = .small
+      secondarySubtitleSwitch.controlSize = .small
+
+      speedSlider.neutralValue = 8
+      (audioEQSliders + videoEQSliders + [audioDelaySlider, subDelaySlider, subScaleSlider]).forEach {
+        $0.neutralValue = 0
+      }
+
+      subPosSlider.tintProminence = .none
+    }
+
     // colors
     withAllTableViews { tableView, _ in tableView.backgroundColor = NSColor(named: .sidebarTableBackground)! }
 
@@ -233,12 +275,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     switchHorizontalLine.layer?.opacity = 0.5
     switchHorizontalLine2.wantsLayer = true
     switchHorizontalLine2.layer?.opacity = 0.5
-
-    if #available(macOS 13.0, *) {
-      colorWells.forEach {
-        $0.colorWellStyle = .minimal
-      }
-    }
 
     // Localize decimal format of numbers
     speedSlider0_25xLabel.stringValue = "\(0.25.groupedStringUpTo6Decimals)x"
@@ -478,7 +514,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     if let filter = player.info.audioEqFilter {
       guard let eqString = Regex("\\[(.+?)\\]").captures(in: filter.stringFormat)[at: 1] else { return }
       let filters = eqString.split(separator: ",")
-      zip(filters, eqSliders).forEach { (filter, slider) in
+      zip(filters, audioEQSliders).forEach { (filter, slider) in
         if let gain = filter.split(separator: "=").last {
           slider.doubleValue = Double(gain) ?? 0
         } else {
@@ -486,7 +522,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
         }
       }
     } else {
-      eqSliders.forEach { $0.doubleValue = 0 }
+      audioEQSliders.forEach { $0.doubleValue = 0 }
     }
   }
 
@@ -609,12 +645,6 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
     block(subTableView, .sub)
     block(secSubTableView, .secondSub)
     block(videoTableView, .video)
-  }
-
-  private func withAllAudioEqSliders(_ block: (NSSlider) -> Void) {
-    eqSliders.forEach {
-      block($0)
-    }
   }
 
   // MARK: - Actions
@@ -838,7 +868,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   func applyEQ(_ profile: EQProfile) {
-    zip(eqSliders, profile.gains).forEach { (slider, gain) in
+    zip(audioEQSliders, profile.gains).forEach { (slider, gain) in
       slider.doubleValue = gain
     }
     player.setAudioEq(fromGains: profile.gains)
@@ -847,7 +877,7 @@ class QuickSettingViewController: NSViewController, NSTableViewDataSource, NSTab
 
 
   @IBAction func audioEqSliderAction(_ sender: NSSlider) {
-    player.setAudioEq(fromGains: eqSliders.map { $0.doubleValue })
+    player.setAudioEq(fromGains: audioEQSliders.map { $0.doubleValue })
     eqPopUpButton.selectItem(withTag: eqCustomMenuItemTag)
   }
 
@@ -1061,7 +1091,7 @@ extension QuickSettingViewController: NSMenuDelegate {
     switch tag {
     case eqSaveMenuItemTag:
       if let inputString = promptAudioEQProfileName(isNewProfile: true) {
-        let newProfile = EQProfile(fromCurrentSliders: eqSliders)
+        let newProfile = EQProfile(fromCurrentSliders: audioEQSliders)
         userEQs[inputString] = newProfile
         menuNeedsUpdate(eqPopUpButton.menu!)
         eqPopUpButton.select(findItem(inputString))

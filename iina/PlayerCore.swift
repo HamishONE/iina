@@ -103,22 +103,9 @@ class PlayerCore: NSObject {
     if shouldOpenInSeparateWindows {
       // open each url in its own window. accumulate the return values
       return urls.reduce(nil) { currentReturnValue, url in
-        // skip if url is already open in some player
-        let activePlayerCores = playerCores.filter { $0.info.state != .idle }
-        let relevantActivePlayerCore = activePlayerCores.first { $0.info.currentURL == url }
-
-        if let relevantActivePlayerCore {
-          relevantActivePlayerCore.mainWindow.window?.makeKeyAndOrderFront(nil)
-          return currentReturnValue
-        }
-
-        // open url, combine result into return value
-        let openResult = newPlayerCore.openURLs([url])
-
-        if let openResult {
+        if let openResult = newPlayerCore.openURLs([url]) {
           return (currentReturnValue ?? 0) + openResult
         }
-
         return currentReturnValue
       }
     } else {
@@ -355,7 +342,7 @@ class PlayerCore: NSObject {
       return
     }
     log("Open URL: \(url.absoluteString)")
-    let isNetwork = !url.isFileURL
+    let isNetwork = !url.isFileURL || url.pathExtension.starts(with: "m3u")
     if isNetwork {
       currentWindow?.close()
     }
@@ -363,7 +350,7 @@ class PlayerCore: NSObject {
       info.shouldAutoLoadFiles = true
     }
     info.hdrEnabled = Preference.bool(for: .enableHdrSupport)
-    let path = isNetwork ? url.absoluteString : url.path
+    let path = url.isFileURL ? url.path : url.absoluteString
     openMainWindow(path: path, url: url, isNetwork: isNetwork)
   }
 
@@ -489,6 +476,14 @@ class PlayerCore: NSObject {
     // before loading the file. Otherwise make sure mpv playback is enabled.
     let pause = Preference.bool(for: .pauseWhenOpen)
     mpv.setFlag(MPVOption.PlaybackControl.pause, pause ? true : false, level: .verbose)
+
+    // Normally the display link is started when MainWindowController.windowDidLoad calls initVideo.
+    // However if this player is being reused then the window will have already been loaded and
+    // windowDidLoad will not be called. If playback is not paused make sure the display link is
+    // active.
+    if !pause, mainWindow.loaded {
+      mainWindow.videoView.displayActive()
+    }
 
     // Send load file command
     info.justOpenedFile = true
@@ -1981,10 +1976,7 @@ class PlayerCore: NSObject {
     guard info.state.active else { return }
     log("File loaded")
 
-    // Normally at this point the file will be playing. However if the IINA "Pause" setting is
-    // enabled under "When media is opened" IINA will have paused playback.
-    info.state =  mpv.getFlag(MPVOption.PlaybackControl.pause) ? .paused : .playing
-    syncUI(.playButton)
+    info.state = .loaded
 
     // Must force drawing to cover the case where this player was previously used to play a video
     // and is now playing an audio file without an album cover and without using music mode.
@@ -2035,9 +2027,7 @@ class PlayerCore: NSObject {
     if self.isInMiniPlayer {
       miniPlayer.defaultAlbumArt.isHidden = self.info.vid != 0
     }
-    if Preference.bool(for: .fullScreenWhenOpen) && !mainWindow.fsState.isFullscreen && !isInMiniPlayer {
-      mainWindow.toggleWindowFullScreen()
-    }
+
     // add to history
     if let url = info.currentURL {
       let duration = info.videoDuration ?? .zero
@@ -2054,7 +2044,7 @@ class PlayerCore: NSObject {
   func fileEnded(_ dueToStopCommand: Bool) {
     // if receive end-file when loading file, might be error
     // wait for idle
-    if info.state == .loading {
+    if info.state == .loading || info.state == .starting {
       if !dueToStopCommand {
         receivedEndFileWhileLoading = true
       }
@@ -2136,7 +2126,9 @@ class PlayerCore: NSObject {
       info.isNetworkResource = false
     }
     receivedEndFileWhileLoading = false
-    if info.state.loaded {
+    // close the window if stopped
+    if info.state.loaded ||  // stopped by mpv
+        (info.state == .stopping && (currentWindow?.isVisible ?? false)) {  // user sent stop command
       DispatchQueue.main.async {
         self.currentController.close()
       }
@@ -2197,6 +2189,13 @@ class PlayerCore: NSObject {
     // restart even while paused. See issue #5337.
     syncUI(.time)
     reloadSavedIINAfilters()
+    
+    // The new video's size is guaranteed to be available. Reset the flags used for window resizing.
+    // We can't put this in MPV_EVENT_VIDEO_RECONFIG because it can be emitted with the old video's size
+    // after switching to a new video.
+    // We should keep these flags until a MPV_EVENT_VIDEO_RECONFIG with the new video's size.
+    info.justOpenedFile = false
+    info.justStartedFile = false
 
     NowPlayingInfoManager.shared.updateInfo()
 
@@ -2475,6 +2474,15 @@ class PlayerCore: NSObject {
       currentController.pendingShow = false
       currentController.showWindow(self)
       AppDelegate.shared.openURLWindow.close()
+    }
+    if info.state == .loaded {
+      // Normally at this point the file will be playing. However if the IINA "Pause" setting is
+      // enabled under "When media is opened" IINA will have paused playback.
+      info.state =  mpv.getFlag(MPVOption.PlaybackControl.pause) ? .paused : .playing
+      syncUI(.playButton)
+      if Preference.bool(for: .fullScreenWhenOpen) && !mainWindow.fsState.isFullscreen && !isInMiniPlayer {
+        mainWindow.toggleWindowFullScreen()
+      }
     }
   }
 

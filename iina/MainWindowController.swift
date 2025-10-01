@@ -20,7 +20,9 @@ fileprivate let isMacOS11: Bool = {
 }()
 
 fileprivate let TitleBarHeightNormal: CGFloat = {
-  if #available(macOS 10.16, *) {
+  if #available(macOS 26, *) {
+    return 32
+  } else if #available(macOS 10.16, *) {
     return 28
   } else {
     return 22
@@ -491,7 +493,7 @@ class MainWindowController: PlayerWindowController {
   @IBOutlet weak var osdStackView: NSStackView!
   @IBOutlet weak var osdLabel: NSTextField!
   @IBOutlet weak var osdAccessoryText: NSTextField!
-  @IBOutlet weak var osdAccessoryProgress: NSProgressIndicator!
+  @IBOutlet weak var osdAccessoryProgress: FixedProgressBar!
 
   @IBOutlet weak var pipOverlayView: NSVisualEffectView!
 
@@ -611,7 +613,6 @@ class MainWindowController: PlayerWindowController {
     thumbnailPeekView.isHidden = true
 
     // other initialization
-    osdAccessoryProgress.usesThreadedAnimation = false
     titleBarBottomBorder.fillColor = NSColor(named: .titleBarBorder)!
     cachedScreenCount = NSScreen.screens.count
     [titleBarView, osdVisualEffectView, controlBarBottom, controlBarFloating, sideBarView, osdVisualEffectView, pipOverlayView].forEach {
@@ -1214,15 +1215,46 @@ class MainWindowController: PlayerWindowController {
 
   // MARK: - Window delegate: Open / Close
 
-  /** A method being called when window open. Pretend to be a window delegate. */
+  /// Displays the window.
+  /// - Important: AppKit will refuse to move a window to a different screen before the window has been shown. If the origin
+  ///     places the window on a screen other than `window.screen` then
+  ///     [showWindow](https://developer.apple.com/documentation/appkit/nswindowcontroller/showwindow(_:))
+  ///     will adjust the origin such that the window is within the current screen of the window. This will happen when
+  ///     `determineScreenToUse` selects a different screen for the window based on `MainWindowLastPosition`.  To
+  ///     workaround the AppKit behavior requires allowing `showWindow` to complete and then resetting the origin to display the
+  ///     window on the correct screen. As of macOS Tahoe this AppKit defect has been fixed.
+  /// - Parameter sender: The control sending the message; can be `nil`.
   override func showWindow(_ sender: Any?) {
+    guard let window else { return }
+    log("Showing window at \(window.frame)")
+    let origin = window.frame.origin
     super.showWindow(sender)
-
+    if #unavailable(macOS 26), Preference.bool(for: .enableWrongScreenWorkaround),
+       NSScreen.screens.count > 1, window.frame.origin != origin {
+      log("NSWindowController.showWindow changed origin from \(origin) to \(window.frame.origin)")
+      if player.info.state == .loaded, Preference.bool(for: .fullScreenWhenOpen),
+         !fsState.isFullscreen, !player.isInMiniPlayer {
+        // PlayerCore.notifyWindowVideoSizeChanged will be toggling the window into full screen
+        // mode. Merely resetting the origin works when NSWindow.toggleFullScreen is called.
+        log("Resetting window origin to \(origin)")
+        window.setFrameOrigin(origin)
+      } else {
+        // When not immediately toggling into full screen mode resetting the origin will not work
+        // unless it is done in another task.
+        log("Applying workaround for AppKit using the wrong screen")
+        window.alphaValue = 0
+        DispatchQueue.main.async {
+          self.log("Resetting window origin to \(origin)")
+          window.setFrameOrigin(origin)
+          window.alphaValue = 1
+        }
+      }
+    }
     resetCollectionBehavior()
     // update buffer indicator view
     updateBufferIndicatorView()
     // start tracking mouse event
-    guard let w = self.window, let cv = w.contentView else { return }
+    guard let cv = window.contentView else { return }
     if cv.trackingAreas.isEmpty {
       cv.addTrackingArea(NSTrackingArea(rect: cv.bounds,
                                         options: [.activeAlways, .enabledDuringMouseDrag, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
@@ -1337,9 +1369,6 @@ class MainWindowController: PlayerWindowController {
 
     let isLegacyFullScreen = notification.name == .iinaLegacyFullScreen
     fsState.startAnimatingToFullScreen(legacy: isLegacyFullScreen, priorWindowedFrame: window!.frame)
-
-    // Let mpv decide the correct render region in full screen
-    player.mpv.setFlag(MPVOption.Window.keepaspect, true)
   }
 
   func windowDidEnterFullScreen(_ notification: Notification) {
@@ -1349,7 +1378,6 @@ class MainWindowController: PlayerWindowController {
     removeStandardButtonsFromFadeableViews()
     window?.titlebarAppearsTransparent = false
 
-    videoViewConstraints.values.forEach { $0.constant = 0 }
     videoView.needsLayout = true
     videoView.layoutSubtreeIfNeeded()
     forceDraw("entered full screen mode")
@@ -1410,16 +1438,6 @@ class MainWindowController: PlayerWindowController {
     }
 
     fsState.startAnimatingToWindow()
-
-    // If a window is closed while in full screen mode (control-w pressed) AppKit will still call
-    // this method. Because windows are tied to player cores and cores are cached and reused some
-    // processing must be performed to leave the window in a consistent state for reuse. However
-    // the windowWillClose method will have initiated unloading of the file being played. That
-    // operation is processed asynchronously by mpv. If the window is being closed due to IINA
-    // quitting then mpv could be in the process of shutting down. Must not access mpv while it is
-    // asynchronously processing stop and quit commands.
-    guard player.info.state.active else { return }
-    player.mpv.setFlag(MPVOption.Window.keepaspect, false)
   }
 
   func windowDidExitFullScreen(_ notification: Notification) {
@@ -1459,7 +1477,6 @@ class MainWindowController: PlayerWindowController {
     showUI()
     updateTimer()
 
-    videoViewConstraints.values.forEach { $0.constant = 0 }
     videoView.needsLayout = true
     videoView.layoutSubtreeIfNeeded()
     forceDraw("exited full screen mode")
@@ -1609,33 +1626,14 @@ class MainWindowController: PlayerWindowController {
 
   func windowDidResize(_ notification: Notification) {
     guard let window = window else { return }
-
-    // The `videoView` is not updated during full screen animation (unless using a custom one, however it could be
-    // unbearably laggy under current render meahcanism). Thus when entering full screen, we should keep `videoView`'s
-    // aspect ratio. Otherwise, when entered full screen, there will be an awkward animation that looks like
-    // `videoView` "resized" to screen size suddenly when mpv redraws the video content in correct aspect ratio.
-    if case let .animating(toFullScreen, _, _) = fsState {
-      let aspect: NSSize
-      let targetFrame: NSRect
-      if toFullScreen {
-        aspect = window.aspectRatio == .zero ? window.frame.size : window.aspectRatio
-        targetFrame = aspect.shrink(toSize: window.frame.size).centeredRect(in: window.contentView!.frame)
-      } else {
-        aspect = window.screen?.frame.size ?? NSScreen.main!.frame.size
-        targetFrame = aspect.grow(toSize: window.frame.size).centeredRect(in: window.contentView!.frame)
-      }
-
-      setConstraintsForVideoView([
-        .left: targetFrame.minX,
-        .right:  targetFrame.maxX - window.frame.width,
-        .bottom: -targetFrame.minY,
-        .top: window.frame.height - targetFrame.maxY
-      ])
+    
+    if case .animating(_, _, _) = fsState, player.info.state == .paused {
+      forceDraw("Window entered full screen animation while paused")
     }
 
     // interactive mode
     if isInInteractiveMode {
-      cropSettingsView?.cropBoxView.resized(with: videoView.frame)
+      cropSettingsView?.cropBoxView.resized()
     }
 
     // update control bar position
@@ -2287,12 +2285,12 @@ class MainWindowController: PlayerWindowController {
     let selectedRect: NSRect = selectWholeVideoByDefault ? NSRect(origin: .zero, size: origVideoSize) : .zero
 
     // add crop setting view
-    window.contentView!.addSubview(controlView.cropBoxView)
-    controlView.cropBoxView.selectedRect = selectedRect
-    controlView.cropBoxView.actualSize = origVideoSize
-    controlView.cropBoxView.resized(with: newVideoViewFrame)
+    videoView.addSubview(controlView.cropBoxView)
     controlView.cropBoxView.isHidden = true
     Utility.quickConstraints(["H:|[v]|", "V:|[v]|"], ["v": controlView.cropBoxView])
+    controlView.cropBoxView.selectedRect = selectedRect
+    controlView.cropBoxView.actualSize = origVideoSize
+    controlView.cropBoxView.updateCursorRects()
 
     self.cropSettingsView = controlView
 
@@ -2309,11 +2307,12 @@ class MainWindowController: PlayerWindowController {
         videoViewConstraints[attr]!.animator().constant = newConstants[attr]!
       }
     }) {
-      self.cropSettingsView?.cropBoxView.isHidden = false
       self.videoView.layer?.shadowColor = .black
       self.videoView.layer?.shadowOpacity = 1
       self.videoView.layer?.shadowOffset = .zero
       self.videoView.layer?.shadowRadius = 3
+      self.cropSettingsView?.cropBoxView.resized()
+      self.cropSettingsView?.cropBoxView.isHidden = false
     }
   }
 
@@ -2535,15 +2534,24 @@ class MainWindowController: PlayerWindowController {
   /// - Parameter window: Window to determine the screen for.
   /// - Returns: Screen to use for the given window.
   private func determineScreenToUse(_ window: NSWindow) -> NSScreen {
+    // If the window is currently showing on a screen, use this screen
+    if window.isOnActiveSpace, let currentScreen = window.screen {
+      NSScreen.log("Window is currently showing screen", currentScreen)
+      return currentScreen
+    }
     guard let rectString = UserDefaults.standard.value(forKey: "MainWindowLastPosition") as? String else {
-      return window.selectDefaultScreen()
+      let selected = window.selectDefaultScreen()
+      NSScreen.log("MainWindowLastPosition not found, using default screen", selected)
+      return selected
     }
     let rect = NSRectFromString(rectString)
-    guard let lastScreen = NSScreen.screens.first(where: { NSPointInRect(rect.origin, $0.visibleFrame) }) else {
+    guard let lastScreen = NSScreen.screens.first(where: { NSPointInRect(rect.origin, $0.frame) }) else {
       // The previous window origin is not on any screen. Could be an external screen is no longer
       // connected or the arrangement of the screens has changed.
-      log("MainWindowLastPosition \(rect.origin) is not within any screens")
-      return window.selectDefaultScreen()
+      let selected = window.selectDefaultScreen()
+      NSScreen.log("MainWindowLastPosition \(rect.origin) is not within any screens, using default screen",
+                   selected)
+      return selected
     }
     // Found a screen containing the previous window origin. Use that screen for the window.
     NSScreen.log("MainWindowLastPosition \(rect.origin) matched", lastScreen)
@@ -2578,15 +2586,14 @@ class MainWindowController: PlayerWindowController {
       // - Resize the window to fit video size
       // - Use physical resolution on Retina displays
       // - Direct use of the mpv geometry option
-      let geometrySet = !(player.mpv.getString(MPVOption.Window.geometry) ?? "").isEmpty
       let resizeTiming = Preference.enum(for: .resizeWindowTiming) as Preference.ResizeWindowTiming
       switch resizeTiming {
       case .always:
         needResizeWindow = true
       case .onlyWhenOpen:
-        needResizeWindow = player.info.justOpenedFile || geometrySet || shouldApplyInitialWindowSize
+        needResizeWindow = player.info.justOpenedFile || shouldApplyInitialWindowSize
       case .never:
-        needResizeWindow = geometrySet || shouldApplyInitialWindowSize
+        needResizeWindow = shouldApplyInitialWindowSize
       }
     } else {
       // video size changed during playback
@@ -2594,6 +2601,7 @@ class MainWindowController: PlayerWindowController {
     }
 
     if needResizeWindow {
+      log("Need to resize window")
       // get videoSize on screen
       var videoSize = originalVideoSize
       if Preference.bool(for: .usePhysicalResolution) {
@@ -2650,16 +2658,14 @@ class MainWindowController: PlayerWindowController {
       // user is navigating in playlist. remain same window width.
       let newHeight = frame.width / CGFloat(width) * CGFloat(height)
       let newSize = NSSize(width: frame.width, height: newHeight).satisfyMinSizeWithSameAspectRatio(minSize)
-      rect = NSRect(origin: frame.origin, size: newSize)
+      rect = frame.centeredResize(to: newSize)
       log("Adjusted height of window preserving width: \(rect)")
     }
 
-    // maybe not a good position, consider putting these at playback-restart
-    player.info.justOpenedFile = false
-    player.info.justStartedFile = false
     shouldApplyInitialWindowSize = false
 
     if fsState.isFullscreen {
+      log("In full screen mode, setting prior window frame")
       fsState.priorWindowedFrame = rect
     } else {
       let rectBefore = rect
