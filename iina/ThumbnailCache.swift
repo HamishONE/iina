@@ -8,7 +8,7 @@
 
 import Cocoa
 
-fileprivate let subsystem = Logger.makeSubsystem("thumbcache")
+fileprivate let subsystem = Logger.makeSubsystem("thumbcache", ["photo.stack"])
 
 extension URL {
     var isDirectory: Bool {
@@ -268,10 +268,15 @@ class ThumbnailCache: NSObject {
   /// This method is expected to be called when the file exists.
   static func read(forVideo videoPath: URL?) -> [FFThumbnail]? {
     log("Reading thumbnail cache...")
-    
+
     let md5 = MD5_1MB(forVideo: videoPath!)
     let pathURL = urlFor(md5)
     return read_cache_file(pathURL: pathURL)
+  }
+
+  static func clearThumbnailCache() {
+    try? FileManager.default.removeItem(atPath: Utility.thumbnailCacheURL.path)
+    Utility.createDirIfNotExist(url: Utility.thumbnailCacheURL)
   }
 
   private static func deleteCacheFile(at pathURL: URL) {

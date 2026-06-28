@@ -99,6 +99,8 @@ class JavascriptPlugin: NSObject {
     return "https://github.com/\(githubRepo)"
   }
 
+  var supportAutoUpdate: Bool { githubRepo == nil || githubVersion == nil }
+
   lazy var preferences: [String: Any] = {
     NSDictionary(contentsOfFile: preferencesFileURL.path) as? [String: Any] ?? [:]
   }()
@@ -263,6 +265,10 @@ class JavascriptPlugin: NSObject {
     // If there is a iinaplgz file inside the latest release, use the plgz file
     
     let response = Just.get("https://api.github.com/repos\(url.path)/releases/latest")
+    guard response.ok else {
+      throw PluginError.cannotDownload(response.reason, response.text ?? "")
+    }
+
     if let json = response.json as? [String: Any],
        let assets = json["assets"] as? [[String: Any]],
        let plgzItem = assets.first(where: { ($0["name"] as? String)?.hasSuffix(".iinaplgz") ?? false }),
@@ -428,6 +434,7 @@ class JavascriptPlugin: NSObject {
     if (enabled) {
       registerSubProviders()
     }
+    Logger.log("Loaded JS plugin: \(name) \(version)\(enabled ? "" : " (disabled)")")
   }
 
   func registerSubProviders() {
@@ -481,20 +488,26 @@ class JavascriptPlugin: NSObject {
     return pos
   }
 
-  func checkForUpdates(_ handler: @escaping (String?) -> Void) {
-    if let ghVersion = githubVersion, let ghRepo = githubRepo {
+  func checkNewVersion() async throws -> String? {
+    try await withCheckedThrowingContinuation { continuation in
+      guard let ghVersion = githubVersion, let ghRepo = githubRepo else {
+        continuation.resume(returning: nil)
+        return
+      }
       Just.get("https://raw.githubusercontent.com/\(ghRepo)/master/Info.json", asyncCompletionHandler:  { result in
-        if let json = result.json as? [String: Any],
+        if result.ok,
+           let json = result.json as? [String: Any],
            let newGHVersion = json["ghVersion"] as? Int,
-           let newVersion = json["version"] as? String,
-           newGHVersion > ghVersion {
-          handler(newVersion)
+           let newVersion = json["version"] as? String {
+          if newGHVersion > ghVersion {
+            continuation.resume(returning: newVersion)
+          } else {
+            continuation.resume(returning: nil)
+          }
         } else {
-          handler(nil)
+          continuation.resume(throwing: PluginError.cannotDownload(result.description, result.text ?? ""))
         }
       })
-    } else {
-      handler(nil)
     }
   }
 
@@ -539,6 +552,33 @@ class JavascriptPlugin: NSObject {
     Utility.createDirIfNotExist(url: url)
     return url
   }()
+
+  func localizedPermissions(_ permissions: Set<Permission>? = nil, newLine: String = "\n") -> [(name: String, desc: String, isDangerous: Bool)] {
+    let permissions = permissions ?? self.permissions
+
+    let sorted = permissions.sorted { (a, b) in
+      let da = a.isDangerous, db = b.isDangerous
+      if da == db { return a.rawValue < b.rawValue }
+      return da
+    }
+
+    return sorted.map { permission in
+      func localize(_ key: String) -> String {
+        return NSLocalizedString("permissions.\(permission.rawValue).\(key)", comment: "")
+      }
+      var desc = localize("desc")
+      if case .networkRequest = permission {
+        if domainList.contains("*") {
+          desc += "\(newLine)- \(localize("any_site"))"
+        } else {
+          desc += "\(newLine)- "
+          desc += domainList.joined(separator: "\(newLine)- ")
+        }
+      }
+
+      return (name: localize("name"), desc: desc, isDangerous: permission.isDangerous)
+    }
+  }
 }
 
 
